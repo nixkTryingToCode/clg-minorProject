@@ -1,0 +1,24 @@
+# Local full backend stack:  docker compose up --build
+# Then run the frontend:     cd frontend && npm install && npm run dev
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: recruit
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+  api:
+    build: ./backend
+    depends_on: [db]
+    environment:
+      DB_HOST: db
+      DB_NAME: recruit
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: local-dev-secret-local-dev-secret-local-dev-1234
+      CORS_ORIGINS: http://localhost:5173
+    ports: ["8080:8080"]
+volumes:
+  pgdata:

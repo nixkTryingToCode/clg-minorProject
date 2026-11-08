@@ -1,0 +1,52 @@
+# Render Blueprint: creates PostgreSQL + Spring Boot API (Docker) + static React site.
+databases:
+  - name: recruit-db
+    plan: free
+    databaseName: recruit
+    user: recruit
+
+services:
+  - type: web
+    name: recruit-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: DB_HOST
+        fromDatabase: { name: recruit-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: recruit-db, property: port }
+      - key: DB_NAME
+        fromDatabase: { name: recruit-db, property: database }
+      - key: DB_USER
+        fromDatabase: { name: recruit-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: recruit-db, property: password }
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@recruit.local
+      - key: ADMIN_PASSWORD
+        sync: false        # you will be asked for this in the Render dashboard
+      - key: DEMO_PASSWORD
+        sync: false
+      - key: SEED_DEMO
+        value: "true"
+      - key: CORS_ORIGINS
+        sync: false        # set to your frontend URL, e.g. https://recruit-web.onrender.com
+
+  - type: web
+    name: recruit-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false        # e.g. https://recruit-api.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

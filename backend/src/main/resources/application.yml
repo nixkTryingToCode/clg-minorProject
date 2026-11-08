@@ -1,0 +1,25 @@
+server:
+  port: ${PORT:8080}
+spring:
+  application:
+    name: recruit
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:recruit}}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+app:
+  jwt-secret: ${JWT_SECRET:change-this-secret-change-this-secret-change-this-1234}
+  jwt-expiry-hours: ${JWT_EXPIRY_HOURS:24}
+  cors-origins: ${CORS_ORIGINS:http://localhost:5173}
+  admin-email: ${ADMIN_EMAIL:admin@recruit.local}
+  admin-password: ${ADMIN_PASSWORD:Admin@12345}
+  seed-demo: ${SEED_DEMO:true}
+  demo-password: ${DEMO_PASSWORD:Demo@1234}
