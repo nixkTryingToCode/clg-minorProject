@@ -15,7 +15,20 @@ export function RecruiterHome() {
         <div className="card stat"><span>Active jobs</span><b>{data.activeJobs}</b></div>
         <div className="card stat"><span>Total jobs</span><b>{data.totalJobs}</b></div>
         <div className="card stat"><span>Applications</span><b>{data.totalApplications}</b></div>
+        <div className="card stat"><span>Average compatibility</span><b>{data.averageScore}%</b></div>
+        <div className="card stat"><span>Applicants with verified evidence</span><b>{data.applicantsWithVerifiedEvidence}</b></div>
+        <div className="card stat"><span>Selected</span><b>{data.funnel.selected}</b></div>
       </div>
+      <section className="card stack">
+        <h3>Hiring funnel</h3>
+        {Object.entries(data.funnel).map(([k, v]) => <Bar key={k} label={k[0].toUpperCase() + k.slice(1)} value={data.funnel.applied ? Math.round((v / data.funnel.applied) * 100) : 0} />)}
+      </section>
+      {data.topSkills.length > 0 && (
+        <section className="card stack">
+          <h3>Most common applicant skills</h3>
+          <span className="chips">{data.topSkills.map((t) => <span key={t.skill} className="chip">{t.skill} · {t.count}</span>)}</span>
+        </section>
+      )}
       <div className="grid two">
         <section className="card stack">
           <h3>Applications by status</h3>
@@ -35,7 +48,7 @@ export function RecruiterHome() {
         <h3>Applicants per job</h3>
         {data.perJob.length === 0 ? <p className="muted">You haven't posted any jobs yet. <Link to="/jobs/new">Post one</Link></p> : data.perJob.map((j) => (
           <Link key={j.jobId} to={`/jobs/${j.jobId}/applicants`} className="row between">
-            <span>{j.title} {!j.active && <span className="badge s-withdrawn">inactive</span>}</span><b>{j.applicants}</b>
+            <span>{j.title} {!j.active && <span className="badge s-withdrawn">inactive</span>}</span><b>{j.applicants} <span className="muted small">· avg {j.avgScore}%</span></b>
           </Link>
         ))}
       </section>
@@ -178,6 +191,11 @@ export function Applicants() {
                   <div>
                     <h3>{r.candidateName}</h3>
                     <p className="muted small">{r.candidateEmail} · {r.profile.experienceYears ?? 0} yrs · {r.profile.location || 'Location n/a'}</p>
+                    <p className="small">
+                      {r.evidence.some((e) => e.status === 'VERIFIED') ? <span className="badge s-selected">✔ {r.evidence.filter((e) => e.status === 'VERIFIED').length} verified evidence</span> : <span className="badge s-withdrawn">self-declared only</span>}
+                      {' '}<span className="muted">rank score {r.rankScore} = 85% match + 15% evidence ({r.evidenceScore})</span>
+                      {r.application.mode === 'AUTO' && <> <span className="badge s-screening">auto-applied</span></>}
+                    </p>
                   </div>
                 </div>
                 <div className="row gap wrap">
@@ -198,6 +216,13 @@ export function Applicants() {
                   {Object.entries(r.match.breakdown).map(([k, v]) => <Bar key={k} label={k} value={v} />)}
                   <h4>Candidate-declared skills <span className="badge s-withdrawn">self-declared</span></h4>
                   <Chips items={r.profile.skills} />
+                  <h4>Evidence</h4>
+                  {r.evidence.length === 0 ? <p className="muted small">No evidence provided.</p> : r.evidence.map((e) => (
+                    <p key={e.id} className="small">
+                      <span className={`badge ${e.status === 'VERIFIED' ? 's-selected' : e.status === 'REJECTED' ? 's-rejected' : 's-screening'}`}>{e.status}</span>{' '}
+                      <a href={e.url} target="_blank" rel="noreferrer">{e.title}</a> <span className="muted">({e.type}{e.verifiedBy ? `, checked by ${e.verifiedBy}` : ''})</span>
+                    </p>
+                  ))}
                   {r.profile.headline && <><h4>Headline</h4><p>{r.profile.headline}</p></>}
                   {r.profile.summary && <><h4>Summary</h4><p className="pre">{r.profile.summary}</p></>}
                   {r.profile.education && <><h4>Education</h4><p className="pre">{r.profile.education}</p></>}

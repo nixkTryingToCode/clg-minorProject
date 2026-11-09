@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { Alert, Bar, Spinner, StatusBadge, fmtDate, useLoad } from '../components.jsx';
+import { IngestPanel } from './admin_more.jsx';
 
 export function AdminHome() {
   const { data, error, loading } = useLoad(() => api('/api/admin/stats'));
@@ -15,6 +16,11 @@ export function AdminHome() {
         <div className="card stat"><span>Recruiters</span><b>{data.recruiters}</b></div>
         <div className="card stat"><span>Jobs (active)</span><b>{data.jobs} ({data.activeJobs})</b></div>
         <div className="card stat"><span>Applications</span><b>{data.applications}</b></div>
+      </div>
+      <div className="grid three">
+        <div className="card stat"><span>External jobs</span><b>{data.externalJobs}</b></div>
+        <div className="card stat"><span>Auto-applications</span><b>{data.autoApplications}</b></div>
+        <div className="card stat"><span>Evidence awaiting review</span><b>{data.pendingEvidence}</b></div>
       </div>
       <section className="card stack">
         <h3>Applications by status</h3>
@@ -69,6 +75,7 @@ export function AdminJobs() {
   return (
     <div className="stack-lg">
       <h1>Job moderation</h1>
+      <IngestPanel onDone={reload} />
       <Alert>{err || error}</Alert>
       {loading ? <Spinner /> : (
         <div className="card table-wrap">
@@ -116,7 +123,7 @@ export function AdminAudit() {
   );
 }
 
-const LABELS = { skills: 'Required skills', experience: 'Experience', projects: 'Projects / evidence', role: 'Role relevance', education: 'Education & certifications' };
+const LABELS = { skills: 'Required skills', experience: 'Experience', projects: 'Projects / evidence', role: 'Role relevance', education: 'Education & certifications', semantic: 'Semantic similarity' };
 
 export function AdminSettings() {
   const { data, error, loading } = useLoad(() => api('/api/admin/weights'));

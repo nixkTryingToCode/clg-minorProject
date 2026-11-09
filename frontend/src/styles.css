@@ -89,3 +89,11 @@ th { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-s
 .seg button.on { background: var(--card); color: var(--accent); box-shadow: var(--shadow); }
 .demo { background: var(--accent-soft); padding: .6rem .8rem; border-radius: 10px; }
 @media (max-width: 860px) { .auth-wrap { grid-template-columns: 1fr; } .auth-hero { padding: 2rem 1.2rem; } .bar-row { grid-template-columns: 110px 1fr 40px; } }
+
+.good-text { color: var(--good); }
+.resume { white-space: pre-wrap; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: .8rem; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; max-height: 420px; overflow: auto; }
+details > summary { cursor: pointer; font-weight: 600; margin: .3rem 0; }
+.bell { position: relative; }
+.bell .dot { background: var(--bad); color: #fff; border-radius: 99px; font-size: .65rem; padding: 0 .35rem; margin-left: .2rem; font-weight: 700; }
+.bell-menu { position: absolute; right: 0; top: 110%; width: min(340px, 86vw); max-height: 380px; overflow: auto; z-index: 20; }
+.bell-item { margin: .5rem 0; padding-bottom: .4rem; border-bottom: 1px solid var(--line); }

@@ -19,6 +19,9 @@ public class JobApplication {
     public String missingSkills;
     @Column(length = 5000)
     public String coverLetter;
+    /** MANUAL, AUTO or EXTERNAL_ASSISTED */
+    public String mode;
+    public Long resumeVersionId;
     public Instant createdAt = Instant.now();
     public Instant updatedAt = Instant.now();
 }

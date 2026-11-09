@@ -34,6 +34,8 @@ services:
         sync: false
       - key: SEED_DEMO
         value: "true"
+      - key: RESET_SEED_PASSWORDS
+        value: "false"     # set to "true" for ONE deploy to reset admin/demo passwords, then set back to "false"
       - key: CORS_ORIGINS
         sync: false        # set to your frontend URL, e.g. https://recruit-web.onrender.com
 

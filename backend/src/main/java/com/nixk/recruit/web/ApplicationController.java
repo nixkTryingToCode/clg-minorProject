@@ -4,7 +4,6 @@ import com.nixk.recruit.model.*;
 import com.nixk.recruit.repo.*;
 import com.nixk.recruit.security.CurrentUser;
 import com.nixk.recruit.service.*;
-import com.nixk.recruit.service.MatchingService.MatchResult;
 import com.nixk.recruit.web.Dtos.*;
 import jakarta.validation.Valid;
 import java.time.Instant;
@@ -20,50 +19,40 @@ public class ApplicationController {
     private final ApplicationEventRepo events;
     private final JobRepo jobs;
     private final UserRepo users;
-    private final CandidateProfileRepo candidateProfiles;
     private final ProfileService profiles;
     private final MatchingService matching;
     private final SettingsService settings;
     private final AuditService audit;
+    private final ApplicationWorkflow workflow;
+    private final NotificationService notifications;
+    private final EvidenceRepo evidenceRepo;
+    private final EvidenceService evidenceService;
 
     public ApplicationController(ApplicationRepo applications, ApplicationEventRepo events, JobRepo jobs, UserRepo users,
-                                 CandidateProfileRepo candidateProfiles, ProfileService profiles, MatchingService matching,
-                                 SettingsService settings, AuditService audit) {
+                                 ProfileService profiles, MatchingService matching, SettingsService settings,
+                                 AuditService audit, ApplicationWorkflow workflow, NotificationService notifications,
+                                 EvidenceRepo evidenceRepo, EvidenceService evidenceService) {
         this.applications = applications;
         this.events = events;
         this.jobs = jobs;
         this.users = users;
-        this.candidateProfiles = candidateProfiles;
         this.profiles = profiles;
         this.matching = matching;
         this.settings = settings;
         this.audit = audit;
+        this.workflow = workflow;
+        this.notifications = notifications;
+        this.evidenceRepo = evidenceRepo;
+        this.evidenceService = evidenceService;
     }
 
     @PostMapping
     @PreAuthorize("hasRole('CANDIDATE')")
-    @Transactional
     public JobApplication apply(@Valid @RequestBody ApplyRequest r) {
-        AppUser me = CurrentUser.get();
         Job job = jobs.findById(r.jobId()).orElseThrow(() -> new ApiException(404, "Job not found"));
-        if (!job.active) throw new ApiException(400, "This job is no longer accepting applications");
-        if (applications.findByCandidateIdAndJobId(me.id, job.id).isPresent()) {
-            throw new ApiException(409, "You have already applied to this job");
-        }
-        CandidateProfile p = profiles.getOrCreate(me.id);
-        if (Csv.nz(p.skills).isBlank()) throw new ApiException(400, "Please add your skills to your profile before applying");
-        MatchResult m = matching.compute(p, job);
-        JobApplication a = new JobApplication();
-        a.candidateId = me.id;
-        a.jobId = job.id;
-        a.score = m.score();
-        a.matchedSkills = Csv.join(m.matched());
-        a.missingSkills = Csv.join(m.missing());
-        a.coverLetter = r.coverLetter() == null ? null : (r.coverLetter().length() > 5000 ? r.coverLetter().substring(0, 5000) : r.coverLetter());
-        a = applications.save(a);
-        event(a.id, "APPLIED", "Applied with match score " + m.score() + "%");
-        audit.log(me.id, "APPLY", "Application", a.id, "job=" + job.id);
-        return a;
+        String mode = r.mode();
+        if (ApplicationWorkflow.AUTO.equals(mode)) throw new ApiException(400, "Automatic applications are created by your auto-apply rule only");
+        return workflow.submit(CurrentUser.get(), job, mode, r.coverLetter(), r.resumeVersionId());
     }
 
     @GetMapping("/mine")
@@ -72,7 +61,8 @@ public class ApplicationController {
         List<MyApplicationView> out = new ArrayList<>();
         for (JobApplication a : applications.findByCandidateIdOrderByCreatedAtDesc(CurrentUser.get().id)) {
             Job j = jobs.findById(a.jobId).orElse(null);
-            out.add(new MyApplicationView(a, j == null ? "(job removed)" : j.title, j == null ? "" : j.company));
+            out.add(new MyApplicationView(a, j == null ? "(job removed)" : j.title, j == null ? "" : j.company,
+                    j == null ? null : j.source, j == null ? null : j.externalUrl));
         }
         return out;
     }
@@ -91,8 +81,12 @@ public class ApplicationController {
         a.status = ApplicationStatus.WITHDRAWN;
         a.updatedAt = Instant.now();
         a = applications.save(a);
-        event(a.id, "WITHDRAWN", "Candidate withdrew the application");
+        workflow.event(a.id, "WITHDRAWN", "Candidate withdrew the application");
         audit.log(me.id, "WITHDRAW", "Application", a.id, null);
+        Job job = jobs.findById(a.jobId).orElse(null);
+        if (job != null && job.recruiterId != null) {
+            notifications.notify(job.recruiterId, "WITHDRAWN", me.name + " withdrew their application for \"" + job.title + "\".", a.id);
+        }
         return a;
     }
 
@@ -105,7 +99,7 @@ public class ApplicationController {
         return events.findByApplicationIdOrderByCreatedAtAsc(id);
     }
 
-    /** Recruiter: applicants for one job, ranked by live job-specific compatibility. */
+    /** Recruiter: applicants for one job, ranked by job-specific compatibility blended with verified evidence (85/15). */
     @GetMapping("/job/{jobId}")
     @PreAuthorize("hasAnyRole('RECRUITER','ADMIN')")
     public List<ApplicantView> forJob(@PathVariable Long jobId) {
@@ -117,9 +111,13 @@ public class ApplicationController {
             AppUser cand = users.findById(a.candidateId).orElse(null);
             if (cand == null) continue;
             CandidateProfile p = profiles.getOrCreate(cand.id);
-            out.add(new ApplicantView(a, cand.name, cand.email, p, matching.compute(p, job, w)));
+            var match = matching.compute(p, job, w);
+            int evScore = evidenceService.evidenceScore(cand.id);
+            int rank = (int) Math.round(0.85 * match.score() + 0.15 * evScore);
+            out.add(new ApplicantView(a, cand.name, cand.email, p, match,
+                    evidenceRepo.findByCandidateIdOrderByCreatedAtDesc(cand.id), evScore, rank));
         }
-        out.sort(Comparator.comparingInt((ApplicantView v) -> v.match().score()).reversed());
+        out.sort(Comparator.comparingInt(ApplicantView::rankScore).reversed());
         return out;
     }
 
@@ -129,7 +127,7 @@ public class ApplicationController {
     public JobApplication setStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest r) {
         AppUser me = CurrentUser.get();
         JobApplication a = applications.findById(id).orElseThrow(() -> new ApiException(404, "Application not found"));
-        ownedJob(a.jobId, me);
+        Job job = ownedJob(a.jobId, me);
         ApplicationStatus s;
         try {
             s = ApplicationStatus.valueOf(r.status().toUpperCase(Locale.ROOT));
@@ -142,8 +140,10 @@ public class ApplicationController {
         a.status = s;
         a.updatedAt = Instant.now();
         a = applications.save(a);
-        event(a.id, "STATUS_CHANGED", old + " -> " + s);
+        workflow.event(a.id, "STATUS_CHANGED", old + " -> " + s);
         audit.log(me.id, "APPLICATION_STATUS", "Application", a.id, old + " -> " + s);
+        notifications.notify(a.candidateId, "STATUS", "Your application for \"" + job.title + "\" at " + job.company
+                + " is now " + s.name().toLowerCase(Locale.ROOT) + ".", a.id);
         return a;
     }
 
@@ -151,13 +151,5 @@ public class ApplicationController {
         Job job = jobs.findById(jobId).orElseThrow(() -> new ApiException(404, "Job not found"));
         if (me.role != Role.ADMIN && !Objects.equals(job.recruiterId, me.id)) throw new ApiException(403, "Not your job");
         return job;
-    }
-
-    private void event(Long appId, String type, String details) {
-        ApplicationEvent e = new ApplicationEvent();
-        e.applicationId = appId;
-        e.eventType = type;
-        e.details = details;
-        events.save(e);
     }
 }

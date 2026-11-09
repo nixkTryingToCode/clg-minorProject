@@ -11,11 +11,12 @@ import org.springframework.stereotype.Service;
 public class SettingsService {
     public static final Map<String, Double> DEFAULTS = new LinkedHashMap<>();
     static {
-        DEFAULTS.put("skills", 40.0);
+        DEFAULTS.put("skills", 35.0);
         DEFAULTS.put("experience", 20.0);
         DEFAULTS.put("projects", 15.0);
-        DEFAULTS.put("role", 15.0);
+        DEFAULTS.put("role", 10.0);
         DEFAULTS.put("education", 10.0);
+        DEFAULTS.put("semantic", 10.0);
     }
 
     private final SettingRepo repo;

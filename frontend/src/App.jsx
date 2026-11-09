@@ -2,17 +2,20 @@ import { useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { api, getToken, setToken } from './api.js';
 import { AuthCtx } from './authContext.js';
-import { Spinner } from './components.jsx';
+import { NotificationBell, Spinner } from './components.jsx';
 import { Login, Register } from './pages/auth.jsx';
 import { CandidateHome, CandidateProfile, JobDetail, Jobs, MyApplications, Trajectory } from './pages/candidate.jsx';
+import { AutoApply, Evidence, Resumes } from './pages/candidate_more.jsx';
+import { FindCandidates } from './pages/recruiter_more.jsx';
+import { AdminEvaluation, AdminEvidence } from './pages/admin_more.jsx';
 import { Applicants, JobForm, RecruiterCompany, RecruiterHome, RecruiterJobs } from './pages/recruiter.jsx';
 import { AdminAudit, AdminHome, AdminJobs, AdminSettings, AdminUsers } from './pages/admin.jsx';
 
 
 const NAV = {
-  CANDIDATE: [['/', 'Dashboard'], ['/profile', 'My Profile'], ['/jobs', 'Jobs'], ['/trajectory', 'Career Trajectory'], ['/applications', 'Applications']],
-  RECRUITER: [['/', 'Dashboard'], ['/jobs', 'My Jobs'], ['/jobs/new', 'Post a Job'], ['/company', 'Company']],
-  ADMIN: [['/', 'Overview'], ['/users', 'Users'], ['/jobs', 'Jobs'], ['/audit', 'Audit Log'], ['/settings', 'Scoring']],
+  CANDIDATE: [['/', 'Dashboard'], ['/profile', 'Profile'], ['/evidence', 'Evidence'], ['/jobs', 'Jobs'], ['/trajectory', 'Career Trajectory'], ['/resumes', 'Resumes'], ['/applications', 'Applications'], ['/auto-apply', 'Auto-apply']],
+  RECRUITER: [['/', 'Dashboard'], ['/jobs', 'My Jobs'], ['/jobs/new', 'Post a Job'], ['/candidates', 'Find Candidates'], ['/company', 'Company']],
+  ADMIN: [['/', 'Overview'], ['/users', 'Users'], ['/jobs', 'Jobs'], ['/evidence', 'Evidence'], ['/evaluation', 'Evaluation'], ['/audit', 'Audit Log'], ['/settings', 'Scoring']],
 };
 
 export default function App() {
@@ -60,6 +63,7 @@ export default function App() {
             ))}
           </nav>
           <div className="who">
+            <NotificationBell />
             <span className="muted small">{user.name} · {role.toLowerCase()}</span>
             <button className="btn ghost" onClick={logout}>Log out</button>
           </div>
@@ -74,6 +78,9 @@ export default function App() {
             <Route path="/jobs/:id" element={<JobDetail />} />
             <Route path="/trajectory" element={<Trajectory />} />
             <Route path="/applications" element={<MyApplications />} />
+            <Route path="/evidence" element={<Evidence />} />
+            <Route path="/resumes" element={<Resumes />} />
+            <Route path="/auto-apply" element={<AutoApply />} />
           </>)}
           {role === 'RECRUITER' && (<>
             <Route path="/" element={<RecruiterHome />} />
@@ -82,12 +89,15 @@ export default function App() {
             <Route path="/jobs/:id/edit" element={<JobForm />} />
             <Route path="/jobs/:id/applicants" element={<Applicants />} />
             <Route path="/company" element={<RecruiterCompany />} />
+            <Route path="/candidates" element={<FindCandidates />} />
           </>)}
           {role === 'ADMIN' && (<>
             <Route path="/" element={<AdminHome />} />
             <Route path="/users" element={<AdminUsers />} />
             <Route path="/jobs" element={<AdminJobs />} />
             <Route path="/audit" element={<AdminAudit />} />
+            <Route path="/evidence" element={<AdminEvidence />} />
+            <Route path="/evaluation" element={<AdminEvaluation />} />
             <Route path="/settings" element={<AdminSettings />} />
           </>)}
           <Route path="*" element={<Navigate to="/" replace />} />

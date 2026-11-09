@@ -50,4 +50,18 @@ public final class RoleCatalog {
             List.of("cloud"),
             List.of("Host a 3-tier app on AWS with infrastructure-as-code", "Earn a cloud associate certification"))
     );
+
+    public static RoleDef byName(String name) {
+        for (RoleDef r : ROLES) if (r.name().equalsIgnoreCase(name)) return r;
+        return null;
+    }
+
+    /** True when a job title belongs to the given role (used for "open roles" on the trajectory page). */
+    public static boolean titleMatches(RoleDef role, String title) {
+        String t = title == null ? "" : title.toLowerCase(java.util.Locale.ROOT);
+        String main = role.name().toLowerCase(java.util.Locale.ROOT).split(" /")[0];
+        if (t.contains(main)) return true;
+        for (String k : role.keywords()) if (t.contains(k)) return true;
+        return false;
+    }
 }

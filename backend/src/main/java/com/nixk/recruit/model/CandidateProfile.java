@@ -33,5 +33,7 @@ public class CandidateProfile {
     public String resumeText;
     /** MANUAL or RESUME_CONFIRMED (resume-derived data the candidate reviewed and saved). */
     public String profileSource = "MANUAL";
+    /** Nullable on purpose (safe ddl-auto upgrade); null is treated as true. */
+    public Boolean openToRecruiters = true;
     public Instant updatedAt = Instant.now();
 }

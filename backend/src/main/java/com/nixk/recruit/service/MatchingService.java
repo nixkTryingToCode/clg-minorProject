@@ -5,20 +5,33 @@ import com.nixk.recruit.model.Job;
 import java.util.*;
 import org.springframework.stereotype.Service;
 
-/** Explainable, rule-based candidate-job compatibility scoring (weights are admin-configurable). */
+/** Explainable candidate-job compatibility scoring (weights are admin-configurable). */
 @Service
 public class MatchingService {
     public record MatchResult(int score, List<String> matched, List<String> missing,
                               List<String> reasons, Map<String, Integer> breakdown) {}
 
+    public record Impact(String skill, int gain, String learn) {}
+
     private static final Set<String> STOP = Set.of("and", "the", "for", "of", "a", "in", "at", "sr", "jr", "senior", "junior", "with", "to");
 
     private final SkillCatalog catalog;
     private final SettingsService settings;
+    private final SimilarityService similarity;
 
-    public MatchingService(SkillCatalog catalog, SettingsService settings) {
+    public MatchingService(SkillCatalog catalog, SettingsService settings, SimilarityService similarity) {
         this.catalog = catalog;
         this.settings = settings;
+        this.similarity = similarity;
+    }
+
+    public static String profileText(CandidateProfile p) {
+        return String.join("\n", Csv.nz(p.headline), Csv.nz(p.summary), Csv.nz(p.preferredRoles), Csv.nz(p.skills),
+                Csv.nz(p.experience), Csv.nz(p.projects), Csv.nz(p.certifications), Csv.nz(p.education));
+    }
+
+    public static String jobText(Job j) {
+        return String.join("\n", Csv.nz(j.title), Csv.nz(j.requiredSkills), Csv.nz(j.description));
     }
 
     public MatchResult compute(CandidateProfile p, Job j) {
@@ -29,6 +42,14 @@ public class MatchingService {
         Set<String> have = Csv.lower(catalog.normalize(p.skills));
         Set<String> evidence = Csv.lower(catalog.extract(Csv.nz(p.projects) + "\n" + Csv.nz(p.experience)));
         List<String> required = catalog.normalize(j.requiredSkills);
+
+        if (have.isEmpty() && evidence.isEmpty()) {
+            Map<String, Integer> zero = new LinkedHashMap<>();
+            for (String k : List.of("Required skills", "Experience", "Projects / evidence", "Role relevance",
+                    "Education & certifications", "Semantic similarity")) zero.put(k, 0);
+            return new MatchResult(0, new ArrayList<>(), new ArrayList<>(required),
+                    List.of("Add your skills, projects and experience to your profile to see your compatibility."), zero);
+        }
 
         List<String> matched = new ArrayList<>();
         List<String> missing = new ArrayList<>();
@@ -63,10 +84,12 @@ public class MatchingService {
         if (!Csv.nz(p.education).isBlank()) eduScore += 0.6;
         if (!Csv.nz(p.certifications).isBlank()) eduScore += 0.4;
 
+        double semantic = similarity.similarity(profileText(p), jobText(j));
+
         double total = w.values().stream().mapToDouble(Double::doubleValue).sum();
         if (total <= 0) total = 1;
         double weighted = w.get("skills") * skillScore + w.get("experience") * expScore + w.get("projects") * projectScore
-                + w.get("role") * roleScore + w.get("education") * eduScore;
+                + w.get("role") * roleScore + w.get("education") * eduScore + w.get("semantic") * semantic;
         int score = (int) Math.round(100.0 * weighted / total);
 
         Map<String, Integer> breakdown = new LinkedHashMap<>();
@@ -75,6 +98,7 @@ public class MatchingService {
         breakdown.put("Projects / evidence", pct(projectScore));
         breakdown.put("Role relevance", pct(roleScore));
         breakdown.put("Education & certifications", pct(eduScore));
+        breakdown.put("Semantic similarity", pct(semantic));
 
         List<String> reasons = new ArrayList<>();
         if (!required.isEmpty()) reasons.add("Matches " + matched.size() + " of " + required.size() + " required skills.");
@@ -82,7 +106,40 @@ public class MatchingService {
         if (!missing.isEmpty()) reasons.add("Missing: " + Csv.join(missing) + ".");
         if (inEvidence > 0) reasons.add(inEvidence + " required skill(s) are backed by your projects/experience.");
         if (roleScore >= 0.5) reasons.add("Your headline/preferred roles align with the job title.");
+        if (semantic >= 0.5) reasons.add("Your profile text is semantically close to the job description.");
         return new MatchResult(Math.max(0, Math.min(100, score)), matched, missing, reasons, breakdown);
+    }
+
+    /** "What if" analysis: how many points each missing skill would add to this job's score. */
+    public List<Impact> skillImpact(CandidateProfile p, Job j) {
+        Map<String, Double> w = settings.weights();
+        MatchResult base = compute(p, j, w);
+        List<Impact> out = new ArrayList<>();
+        for (String m : base.missing()) {
+            CandidateProfile c = copy(p);
+            c.skills = Csv.nz(p.skills).isBlank() ? m : p.skills + ", " + m;
+            int gain = compute(c, j, w).score() - base.score();
+            out.add(new Impact(m, Math.max(0, gain), LearningResources.link(m)));
+        }
+        out.sort(Comparator.comparingInt(Impact::gain).reversed());
+        return out.size() > 6 ? new ArrayList<>(out.subList(0, 6)) : out;
+    }
+
+    public static CandidateProfile copy(CandidateProfile p) {
+        CandidateProfile c = new CandidateProfile();
+        c.userId = p.userId;
+        c.headline = p.headline;
+        c.phone = p.phone;
+        c.location = p.location;
+        c.experienceYears = p.experienceYears;
+        c.summary = p.summary;
+        c.preferredRoles = p.preferredRoles;
+        c.skills = p.skills;
+        c.education = p.education;
+        c.experience = p.experience;
+        c.projects = p.projects;
+        c.certifications = p.certifications;
+        return c;
     }
 
     private static int pct(double d) {

@@ -21,6 +21,8 @@ public class Job {
     public String employmentType;
     public Double minExperience;
     public String externalUrl;
+    /** Id of the job in the external source, used for de-duplication. */
+    public String sourceJobId;
     public boolean active = true;
     public Instant createdAt = Instant.now();
 }

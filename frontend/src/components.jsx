@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { api } from './api.js';
 
 export function Alert({ kind = 'error', children }) {
   if (!children) return null;
@@ -68,3 +69,34 @@ export function useLoad(fn, deps = []) {
 }
 
 export const fmtDate = (s) => (s ? new Date(s).toLocaleString() : '');
+
+export function NotificationBell() {
+  const [data, setData] = useState({ items: [], unread: 0 });
+  const [open, setOpen] = useState(false);
+  const load = () => api('/api/notifications').then(setData).catch(() => {});
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 60000);
+    return () => clearInterval(t);
+  }, []);
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && data.unread > 0) {
+      try { await api('/api/notifications/read-all', { method: 'POST' }); setData({ ...data, unread: 0 }); } catch { /* ignore */ }
+    }
+  };
+  return (
+    <div className="bell">
+      <button className="btn ghost" onClick={toggle} aria-label="Notifications">🔔{data.unread > 0 && <span className="dot">{data.unread}</span>}</button>
+      {open && (
+        <div className="bell-menu card">
+          <b>Notifications</b>
+          {data.items.length === 0 ? <p className="muted small">Nothing yet.</p> : data.items.slice(0, 12).map((n) => (
+            <p key={n.id} className="small bell-item">{n.message}<br /><span className="muted">{fmtDate(n.createdAt)}</span></p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
