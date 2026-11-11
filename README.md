@@ -2,8 +2,10 @@
 
 SNAP-HIRE is a recruitment platform with three roles: candidates, recruiters and administrators.
 Candidates build a profile from a resume, browse jobs and follow their applications from applied to
-selected. Recruiters post jobs and get a ranked list of applicants for each opening. Administrators
-run the platform: users, evidence verification, audit trail and the weights used for scoring.
+selected. Recruiters post jobs and get a ranked list of applicants for each opening, either as
+independent recruiters or as members of a verified company organisation. Administrators run the
+platform: users, company verification, evidence verification, audit trail and the weights used for
+scoring.
 
 Match scores are explainable. Every score can be broken down into the factors behind it, and
 supporting evidence such as GitHub links and certificates is labelled as verified or self-declared
@@ -20,14 +22,20 @@ so a recruiter knows what they are looking at.
 - Auto-apply rules for internal jobs (minimum score, daily cap, location and title filters)
 - Evidence section for GitHub links and certificates, reviewed by an administrator
 
-**Recruiters**
-- Post, edit and close jobs
+**Recruiters and companies**
+- Post, edit and close jobs; jobs posted from inside a company carry its verified name
 - Applicant pipeline with status changes and events
 - Candidate search with filters, ranked by compatibility and evidence
 - Funnel, average score and top-skill analytics
+- Company registration with domain, website, description, industry, location, logo and verification documents
+- Admin verification queue with an "auto verify" toggle that can be turned off again at any time
+- Company admins invite recruiters by email with a role and granular permissions; invitees choose their own password
+- Membership management: grant or revoke the eight permissions, suspend and reactivate members
+- Company-wide job, application and hire analytics
 
 **Administrators**
 - User and job management, evidence verification, audit log
+- Company verification: review registrations and their documents, activate, reject or suspend
 - Tunable scoring weights and evaluation metrics
 - Ingestion of external listings into the common job board
 
@@ -40,13 +48,15 @@ so a recruiter knows what they are looking at.
 
 ## Demo accounts
 
-On first start the database is seeded with 18 candidates, 3 recruiters, 30 internal jobs,
-4 external listings and applications in every stage of the pipeline.
+On first start the database is seeded with 18 candidates, recruiter and company-admin accounts,
+4 companies (one still awaiting verification), 30 internal jobs, 4 external listings and
+applications in every stage of the pipeline.
 
 | Role | Email | Password |
 |---|---|---|
 | Admin | `admin@recruit.local` | `Admin@12345` |
-| Recruiter | `recruiter@demo.com`, `recruiter2@demo.com`, `recruiter3@demo.com` | `Demo@1234` |
+| Company admin | `owner@demo.com` (TechNova Solutions), `recruiter2@demo.com` (FinEdge Capital), `recruiter3@demo.com` (CloudKart), `zenith@demo.com` (Zenith Labs, awaiting verification) | `Demo@1234` |
+| Recruiter | `recruiter@demo.com` (member of TechNova Solutions) | `Demo@1234` |
 | Candidate | `candidate@demo.com`, `priya.nair@demo.com`, `rohan.mehta@demo.com`, `sneha.kapoor@demo.com`, `kavya.iyer@demo.com`, `sameer.ali@demo.com` and the other seeded candidates | `Demo@1234` |
 
 ## Project structure
