@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { Alert, Bar, Chips, STATUSES, ScoreRing, Spinner, StatusBadge, useLoad } from '../components.jsx';
+import { useAuth } from '../authContext.js';
+import { Alert, Bar, Chips, STATUSES, ScoreRing, Spinner, StatusBadge, can, useLoad } from '../components.jsx';
 
 export function RecruiterHome() {
+  const { user } = useAuth();
   const { data, error, loading } = useLoad(() => api('/api/recruiter/stats'));
   if (loading) return <Spinner />;
   if (error) return <Alert>{error}</Alert>;
@@ -46,7 +48,7 @@ export function RecruiterHome() {
       </div>
       <section className="card stack">
         <h3>Applicants per job</h3>
-        {data.perJob.length === 0 ? <p className="muted">You haven't posted any jobs yet. <Link to="/jobs/new">Post one</Link></p> : data.perJob.map((j) => (
+        {data.perJob.length === 0 ? <p className="muted">You haven't posted any jobs yet.{can(user, 'POST_JOB') && <> <Link to="/jobs/new">Post one</Link></>}</p> : data.perJob.map((j) => (
           <Link key={j.jobId} to={`/jobs/${j.jobId}/applicants`} className="row between">
             <span>{j.title} {!j.active && <span className="badge s-withdrawn">inactive</span>}</span><b>{j.applicants} <span className="muted small">· avg {j.avgScore}%</span></b>
           </Link>
@@ -57,6 +59,7 @@ export function RecruiterHome() {
 }
 
 export function RecruiterJobs() {
+  const { user } = useAuth();
   const { data, error, loading, reload } = useLoad(() => api('/api/jobs/mine'));
   const [err, setErr] = useState('');
   const toggle = async (j) => {
@@ -71,7 +74,7 @@ export function RecruiterJobs() {
   };
   return (
     <div className="stack-lg">
-      <div className="row between"><h1>My jobs</h1><Link className="btn primary" to="/jobs/new">+ Post a job</Link></div>
+      <div className="row between"><h1>My jobs</h1>{can(user, 'POST_JOB') && <Link className="btn primary" to="/jobs/new">+ Post a job</Link>}</div>
       <Alert>{err || error}</Alert>
       {loading ? <Spinner /> : data && data.length === 0 ? <p className="muted">No jobs yet.</p> : (
         <div className="stack">
@@ -102,6 +105,7 @@ const EMPTY = { title: '', company: '', description: '', requiredSkills: '', loc
 
 export function JobForm() {
   const { id } = useParams();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState('');
@@ -129,7 +133,11 @@ export function JobForm() {
       <h1>{id ? 'Edit job' : 'Post a job'}</h1>
       <Alert>{error}</Alert>
       <label>Job title<input required value={form.title} onChange={set('title')} /></label>
-      <label>Company (defaults to your company)<input value={form.company || ''} onChange={set('company')} /></label>
+      {user && user.companyId ? (
+        <label>Company<p className="muted">{user.companyName} <span className="small">(from your verified company)</span></p></label>
+      ) : (
+        <label>Company (defaults to your company)<input value={form.company || ''} onChange={set('company')} /></label>
+      )}
       <label>Description<textarea required rows={7} value={form.description} onChange={set('description')} /></label>
       <label>Required skills (comma separated)<input value={form.requiredSkills || ''} onChange={set('requiredSkills')} placeholder="Java, Spring Boot, PostgreSQL" /></label>
       <Chips items={form.requiredSkills} />

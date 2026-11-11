@@ -2,24 +2,49 @@ import { useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { api, getToken, setToken } from './api.js';
 import { AuthCtx } from './authContext.js';
-import { NavMenu, NotificationBell, Spinner } from './components.jsx';
+import { NavMenu, NotificationBell, Spinner, can } from './components.jsx';
 import { Login, Register } from './pages/auth.jsx';
 import { CandidateHome, CandidateProfile, JobDetail, Jobs, MyApplications, Trajectory } from './pages/candidate.jsx';
 import { AutoApply, Evidence, Resumes } from './pages/candidate_more.jsx';
 import { FindCandidates } from './pages/recruiter_more.jsx';
 import { AdminEvaluation, AdminEvidence } from './pages/admin_more.jsx';
 import { Applicants, JobForm, RecruiterCompany, RecruiterHome, RecruiterJobs } from './pages/recruiter.jsx';
-import { AdminAudit, AdminHome, AdminJobs, AdminSettings, AdminUsers } from './pages/admin.jsx';
+import { AdminAudit, AdminCompanies, AdminHome, AdminJobs, AdminSettings, AdminUsers } from './pages/admin.jsx';
+import { Company, InviteAccept, Recruiters, RegisterCompany } from './pages/company.jsx';
 
+const CANDIDATE_NAV = [
+  ['/', 'Dashboard'],
+  { label: 'My Profile', items: [['/profile', 'Profile'], ['/evidence', 'Evidence'], ['/applications', 'Applications']] },
+  ['/jobs', 'Jobs'], ['/trajectory', 'Career Trajectory'], ['/resumes', 'Resumes'], ['/auto-apply', 'Auto-apply'],
+];
+const ADMIN_NAV = [
+  ['/', 'Overview'], ['/users', 'Users'], ['/jobs', 'Jobs'], ['/companies', 'Companies'], ['/evidence', 'Evidence'],
+  ['/evaluation', 'Evaluation'], ['/audit', 'Audit Log'], ['/settings', 'Scoring'],
+];
 
-const NAV = {
-  CANDIDATE: [
-    ['/', 'Dashboard'],
-    { label: 'My Profile', items: [['/profile', 'Profile'], ['/evidence', 'Evidence'], ['/applications', 'Applications']] },
-    ['/jobs', 'Jobs'], ['/trajectory', 'Career Trajectory'], ['/resumes', 'Resumes'], ['/auto-apply', 'Auto-apply'],
-  ],
-  RECRUITER: [['/', 'Dashboard'], ['/jobs', 'My Jobs'], ['/jobs/new', 'Post a Job'], ['/candidates', 'Find Candidates'], ['/company', 'Company']],
-  ADMIN: [['/', 'Overview'], ['/users', 'Users'], ['/jobs', 'Jobs'], ['/evidence', 'Evidence'], ['/evaluation', 'Evaluation'], ['/audit', 'Audit Log'], ['/settings', 'Scoring']],
+/** Nav for recruiters and company admins; company permissions may hide individual entries. */
+const hiringNav = (user) => {
+  const items = [['/', 'Dashboard'], ['/jobs', 'My Jobs']];
+  if (can(user, 'POST_JOB')) items.push(['/jobs/new', 'Post a Job']);
+  if (can(user, 'VIEW_APPLICANTS')) items.push(['/candidates', 'Find Candidates']);
+  if (user.role === 'RECRUITER') {
+    items.push(['/company', 'Company']);
+    if (user.companyId && can(user, 'MANAGE_RECRUITERS')) items.push(['/recruiters', 'Recruiters']);
+  }
+  if (user.role === 'COMPANY_ADMIN') {
+    items.push({ label: 'Company', items: [['/company', 'Company'], ['/recruiters', 'Recruiters']] });
+  }
+  return items;
+};
+
+const navFor = (user) => {
+  switch (user.role) {
+    case 'CANDIDATE': return CANDIDATE_NAV;
+    case 'RECRUITER':
+    case 'COMPANY_ADMIN': return hiringNav(user);
+    case 'ADMIN': return ADMIN_NAV;
+    default: return [];
+  }
 };
 
 export default function App() {
@@ -49,6 +74,8 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/register-company" element={<RegisterCompany />} />
+          <Route path="/invite/:token" element={<InviteAccept />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </AuthCtx.Provider>
@@ -62,7 +89,7 @@ export default function App() {
         <div className="topbar-inner">
           <span className="brand">SNAP-HIRE</span>
           <nav>
-            {NAV[role].map((entry) => (Array.isArray(entry) ? (
+            {navFor(user).map((entry) => (Array.isArray(entry) ? (
               <NavLink key={entry[0]} to={entry[0]} end={entry[0] === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>{entry[1]}</NavLink>
             ) : (
               <NavMenu key={entry.label} label={entry.label} items={entry.items} />
@@ -70,7 +97,7 @@ export default function App() {
           </nav>
           <div className="who">
             <NotificationBell />
-            <span className="muted small">{user.name} · {role.toLowerCase()}</span>
+            <span className="muted small">{user.name} · {role.toLowerCase().replace(/_/g, ' ')}</span>
             <button className="btn ghost" onClick={logout}>Log out</button>
           </div>
         </div>
@@ -88,24 +115,27 @@ export default function App() {
             <Route path="/resumes" element={<Resumes />} />
             <Route path="/auto-apply" element={<AutoApply />} />
           </>)}
-          {role === 'RECRUITER' && (<>
+          {(role === 'RECRUITER' || role === 'COMPANY_ADMIN') && (<>
             <Route path="/" element={<RecruiterHome />} />
             <Route path="/jobs" element={<RecruiterJobs />} />
             <Route path="/jobs/new" element={<JobForm />} />
             <Route path="/jobs/:id/edit" element={<JobForm />} />
             <Route path="/jobs/:id/applicants" element={<Applicants />} />
-            <Route path="/company" element={<RecruiterCompany />} />
             <Route path="/candidates" element={<FindCandidates />} />
+            <Route path="/recruiters" element={<Recruiters />} />
+            <Route path="/company" element={role === 'COMPANY_ADMIN' ? <Company /> : <RecruiterCompany />} />
           </>)}
           {role === 'ADMIN' && (<>
             <Route path="/" element={<AdminHome />} />
             <Route path="/users" element={<AdminUsers />} />
             <Route path="/jobs" element={<AdminJobs />} />
+            <Route path="/companies" element={<AdminCompanies />} />
             <Route path="/audit" element={<AdminAudit />} />
             <Route path="/evidence" element={<AdminEvidence />} />
             <Route path="/evaluation" element={<AdminEvaluation />} />
             <Route path="/settings" element={<AdminSettings />} />
           </>)}
+          <Route path="/invite/:token" element={<InviteAccept />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

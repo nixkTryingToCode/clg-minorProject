@@ -88,8 +88,17 @@ export const notificationLink = (n) => {
   if (n.type === 'EVIDENCE') return '/evidence';
   if (n.type === 'NEW_APPLICATION' || n.type === 'WITHDRAWN') return n.jobId ? `/jobs/${n.jobId}/applicants` : '/jobs';
   if (n.type === 'STATUS' || n.type === 'AUTO_APPLY') return n.linkId ? `/applications?a=${n.linkId}` : '/applications';
+  if (n.type === 'COMPANY_VERIFIED') return '/company';
+  if (n.type === 'INVITE_ACCEPTED') return '/recruiters';
   return '/';
 };
+
+/**
+ * Company permission check for the UI. Users without a company (and admins) have
+ * full access, so only an explicit permissions list can restrict the view.
+ */
+export const can = (user, permission) =>
+  !user || !Array.isArray(user.permissions) || user.permissions.includes(permission);
 
 /**
  * Header dropdown that groups several routes behind one label.

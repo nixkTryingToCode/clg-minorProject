@@ -25,6 +25,14 @@ nav a:hover { background: var(--accent-soft); text-decoration: none; } nav a.act
 
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.2rem; box-shadow: var(--shadow); }
 
+/* company workflow */
+.alert.warn { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); }
+.co-logo { width: 54px; height: 54px; border-radius: 12px; object-fit: cover; border: 1px solid var(--line); background: var(--card); flex: none; }
+.co-logo.ph { display: grid; place-items: center; font-weight: 800; font-size: 1.4rem; color: var(--accent); background: var(--accent-soft); }
+.perm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .35rem 1rem; }
+.invite-row { border-bottom: 1px solid var(--line); padding-bottom: .6rem; }
+.invite-row:last-child { border-bottom: 0; padding-bottom: 0; }
+
 /* header dropdown that groups several routes behind one label */
 .nav-group { position: relative; }
 .nav-group > button { display: inline-flex; align-items: center; gap: .3rem; color: var(--muted); background: transparent; border: 0; padding: .4rem .75rem; border-radius: 8px; font: inherit; font-weight: 500; cursor: pointer; }
@@ -93,9 +101,7 @@ th { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-s
 .auth-hero { background: linear-gradient(145deg, #3b34c9, #6d5cff 60%, #9f8bff); color: #fff; padding: 4rem 3rem; display: flex; flex-direction: column; justify-content: center; gap: .8rem; }
 .auth-hero h1 { font-size: 2.4rem; } .auth-hero ul { padding-left: 1.1rem; line-height: 1.9; }
 .auth-card { margin: auto; width: min(420px, 90%); display: flex; flex-direction: column; gap: .8rem; }
-.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--bg); border-radius: 10px; padding: 4px; gap: 4px; }
-.seg button { border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 600; padding: .5rem; border-radius: 8px; cursor: pointer; }
-.seg button.on { background: var(--card); color: var(--accent); box-shadow: var(--shadow); }
+.auth-card.wide { width: min(680px, 94%); }
 .demo { background: var(--accent-soft); padding: .6rem .8rem; border-radius: 10px; }
 @media (max-width: 860px) { .auth-wrap { grid-template-columns: 1fr; } .auth-hero { padding: 2rem 1.2rem; } .bar-row { grid-template-columns: 110px 1fr 40px; } }
 
@@ -117,4 +123,5 @@ details > summary { cursor: pointer; font-weight: 600; margin: .3rem 0; }
 .bell-text { font-size: .85rem; line-height: 1.4; }
 .n-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--muted); margin-top: .42rem; }
 .n-dot.STATUS, .n-dot.AUTO_APPLY, .n-dot.NEW_APPLICATION, .n-dot.WITHDRAWN { background: var(--accent); }
-.n-dot.EVIDENCE { background: var(--good); }
+.n-dot.EVIDENCE, .n-dot.COMPANY_VERIFIED { background: var(--good); }
+.n-dot.INVITE_ACCEPTED { background: var(--warn); }

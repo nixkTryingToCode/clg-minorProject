@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { api } from '../api.js';
+import { Fragment, useEffect, useState } from 'react';
+import { api, downloadAuth } from '../api.js';
 import { Alert, Bar, Spinner, StatusBadge, fmtDate, useLoad } from '../components.jsx';
 import { IngestPanel } from './admin_more.jsx';
 
@@ -100,8 +100,126 @@ export function AdminJobs() {
   );
 }
 
-export function AdminAudit() {
-  const { data, error, loading } = useLoad(() => api('/api/admin/audit'));
+const CO_TONE = { ACTIVE: 's-selected', PENDING_VERIFICATION: 's-screening', REJECTED: 's-rejected', SUSPENDED: 's-withdrawn' };
+const coLabel = (s) => (s || '').toLowerCase().replace(/_/g, ' ');
+
+export function AdminCompanies() {
+  const { data, error, loading, reload } = useLoad(() => api('/api/admin/companies'));
+  const auto = useLoad(() => api('/api/admin/companies/auto-verify'));
+  const [msg, setMsg] = useState({ kind: 'error', text: '' });
+  const [openDocs, setOpenDocs] = useState(null);
+  const [docs, setDocs] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const setStatus = async (c, status) => {
+    setMsg({ kind: 'error', text: '' });
+    try {
+      await api(`/api/admin/companies/${c.id}/status`, { method: 'PATCH', body: { status } });
+      setMsg({ kind: 'success', text: `${c.name} is now ${coLabel(status)}.` });
+      reload();
+    } catch (e) { setMsg({ kind: 'error', text: e.message }); }
+  };
+
+  const toggleAuto = async () => {
+    setBusy(true);
+    setMsg({ kind: 'error', text: '' });
+    try {
+      const r = await api('/api/admin/companies/auto-verify', { method: 'PUT', body: { enabled: !auto.data.enabled } });
+      setMsg({
+        kind: 'success',
+        text: r.enabled
+          ? `Auto verification is on — ${r.verified} pending compan${r.verified === 1 ? 'y was' : 'ies were'} verified.`
+          : 'Auto verification is off — new registrations now wait for your review.',
+      });
+      auto.reload();
+      reload();
+    } catch (e) { setMsg({ kind: 'error', text: e.message }); }
+    finally { setBusy(false); }
+  };
+
+  const showDocs = async (c) => {
+    if (openDocs === c.id) { setOpenDocs(null); setDocs(null); return; }
+    setMsg({ kind: 'error', text: '' });
+    try {
+      setDocs(await api(`/api/admin/companies/${c.id}/documents`));
+      setOpenDocs(c.id);
+    } catch (e) { setMsg({ kind: 'error', text: e.message }); }
+  };
+
+  const grab = async (c, d) => {
+    try { await downloadAuth(`/api/admin/companies/${c.id}/documents/${d.id}`, d.fileName); }
+    catch (e) { setMsg({ kind: 'error', text: e.message }); }
+  };
+
+  const pending = (data || []).filter((c) => c.status === 'PENDING_VERIFICATION').length;
+  return (
+    <div className="stack-lg">
+      <h1>Companies</h1>
+      {auto.data && (
+        <section className="card row between wrap">
+          <div>
+            <h3>Auto verification</h3>
+            <p className="muted small" style={{ maxWidth: '48rem' }}>
+              When on, new company registrations are verified immediately. Turn it off to review every company
+              yourself — turning it back on verifies everything still waiting.
+            </p>
+          </div>
+          <button className={`btn ${auto.data.enabled ? 'primary' : ''}`} disabled={busy} onClick={toggleAuto}>
+            {auto.data.enabled ? 'On — turn off' : 'Off — turn on'}
+          </button>
+        </section>
+      )}
+      <Alert kind={msg.kind}>{msg.text}</Alert>
+      <Alert>{error}</Alert>
+      {loading ? <Spinner /> : (
+        <>
+          <p className="muted">{(data || []).length} compan{(data || []).length === 1 ? 'y' : 'ies'} · {pending} awaiting verification.</p>
+          <div className="card table-wrap">
+            <table>
+              <thead><tr><th>Company</th><th>Domain</th><th>Owner</th><th>Members</th><th>Jobs</th><th>Docs</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                {(data || []).map((c) => (
+                  <Fragment key={c.id}>
+                    <tr>
+                      <td>{c.name}<span className="muted small"><br />{c.location || '—'}</span></td>
+                      <td>{c.emailDomain}</td>
+                      <td>{c.ownerEmail || '—'}<span className="muted small"><br />{c.ownerName || ''}</span></td>
+                      <td>{c.memberCount}</td>
+                      <td>{c.jobCount}</td>
+                      <td><button className="btn ghost" onClick={() => showDocs(c)}>{c.documentCount} {openDocs === c.id ? '▾' : '▸'}</button></td>
+                      <td><span className={`badge ${CO_TONE[c.status] || ''}`}>{coLabel(c.status)}</span></td>
+                      <td className="row gap wrap">
+                        {c.status !== 'ACTIVE' && <button className="btn primary" onClick={() => setStatus(c, 'ACTIVE')}>Verify</button>}
+                        {c.status === 'PENDING_VERIFICATION' && <button className="btn ghost" onClick={() => setStatus(c, 'REJECTED')}>Reject</button>}
+                        {c.status === 'ACTIVE' && <button className="btn ghost danger" onClick={() => setStatus(c, 'SUSPENDED')}>Suspend</button>}
+                      </td>
+                    </tr>
+                    {openDocs === c.id && (
+                      <tr>
+                        <td colSpan={8}>
+                          {docs === null ? <Spinner label="Loading documents…" /> : docs.length === 0
+                            ? <p className="muted small">No verification documents were uploaded.</p>
+                            : docs.map((d) => (
+                              <p key={d.id} className="small row between" style={{ maxWidth: '40rem' }}>
+                                <span>{d.fileName} <span className="muted">· {d.mimeType || 'file'} · {fmtDate(d.uploadedAt)}</span></span>
+                                <button className="btn ghost" onClick={() => grab(c, d)}>Download</button>
+                              </p>
+                            ))}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function AdminAudit() {  const { data, error, loading } = useLoad(() => api('/api/admin/audit'));
   return (
     <div className="stack-lg">
       <h1>Audit log</h1>
