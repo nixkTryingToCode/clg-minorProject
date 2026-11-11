@@ -43,6 +43,16 @@ public final class Dtos {
 
     public record IngestRequest(Integer limit) {}
 
+    public record InvitationRequest(@NotBlank @Email String email, String role, List<String> permissions) {}
+
+    public record InviteAcceptRequest(String name, String password) {}
+
+    public record MemberUpdateRequest(List<String> permissions, String status) {}
+
+    public record ReassignRequest(@NotNull Long jobId, @NotNull Long toUserId) {}
+
+    public record CompanyStatusRequest(@NotBlank String status) {}
+
     public record JobView(Job job, MatchResult match, boolean applied, Long applicationId) {}
 
     public record MyApplicationView(JobApplication application, String jobTitle, String company, String jobSource, String externalUrl) {}
