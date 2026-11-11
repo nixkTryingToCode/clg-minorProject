@@ -1,10 +1,19 @@
 package com.nixk.recruit.service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** Demo dataset: many different candidate / job / application / evidence combinations for demonstrations and evaluation. */
 public final class DemoData {
     private DemoData() {}
+
+    /** Every email owned by the demo dataset; the seeder keeps their passwords aligned with DEMO_PASSWORD. */
+    public static List<String> demoEmails() {
+        List<String> emails = new ArrayList<>();
+        RECRUITERS.forEach(r -> emails.add(r.email()));
+        PERSONAS.forEach(p -> emails.add(p.email()));
+        return emails;
+    }
 
     public record Persona(String email, String name, String headline, String location, double years, String summary,
                           String preferredRoles, String skills, String education, String experience, String projects,

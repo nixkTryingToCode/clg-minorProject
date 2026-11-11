@@ -52,7 +52,6 @@ public class DataSeeder implements CommandLineRunner {
     @Value("${app.admin-password}") private String adminPassword;
     @Value("${app.seed-demo}") private boolean seedDemo;
     @Value("${app.demo-password}") private String demoPassword;
-    @Value("${app.reset-seed-passwords:false}") private boolean resetPasswords;
 
     public DataSeeder(UserRepo users, RecruiterProfileRepo recruiters, JobRepo jobs, ApplicationRepo applications,
                       EvidenceRepo evidenceRepo, AutoApplyRuleRepo ruleRepo, ResumeVersionRepo versions, SettingRepo settingRepo,
@@ -89,24 +88,19 @@ public class DataSeeder implements CommandLineRunner {
         if (admin == null) {
             makeUser("Platform Admin", adminMail, adminPw, Role.ADMIN);
             log.info("Created admin account {}", adminMail);
-        } else if (resetPasswords) {
-            admin.passwordHash = encoder.encode(adminPw);
-            admin.enabled = true;
-            users.save(admin);
-            log.warn("RESET_SEED_PASSWORDS is on: admin password reset to the configured ADMIN_PASSWORD");
+        } else if (syncPassword(admin, adminPw)) {
+            log.warn("Admin password realigned to the configured ADMIN_PASSWORD");
         }
         if (!seedDemo) return;
 
-        if (resetPasswords) {
-            for (AppUser u : users.findAll()) {
-                if (u.email.endsWith("@demo.com")) {
-                    u.passwordHash = encoder.encode(demoPw);
-                    u.enabled = true;
-                    users.save(u);
-                }
-            }
-            log.warn("RESET_SEED_PASSWORDS is on: demo account passwords reset to the configured DEMO_PASSWORD");
+        // Seeded accounts always match the configured demo password, so the credentials
+        // published on the login screen keep working on a fresh or redeployed database.
+        int realigned = 0;
+        for (String email : DemoData.demoEmails()) {
+            AppUser u = users.findByEmail(email).orElse(null);
+            if (u != null && syncPassword(u, demoPw)) realigned++;
         }
+        if (realigned > 0) log.warn("Realigned the password of {} demo accounts to DEMO_PASSWORD", realigned);
 
         if (SEED_VERSION.equals(settingRepo.findById(SEED_KEY).map(s -> s.value).orElse(""))) return;
         try {
@@ -325,6 +319,18 @@ public class DataSeeder implements CommandLineRunner {
 
     private AppUser getOrCreateUser(String name, String email, String password, Role role) {
         return users.findByEmail(email).orElseGet(() -> makeUser(name, email, password, role));
+    }
+
+    /**
+     * Brings an existing account back in line with the configured password and re-enables it
+     * if it was disabled. Returns true when something actually changed.
+     */
+    private boolean syncPassword(AppUser u, String password) {
+        if (u.enabled && encoder.matches(password, u.passwordHash)) return false;
+        u.passwordHash = encoder.encode(password);
+        u.enabled = true;
+        users.save(u);
+        return true;
     }
 
     private AppUser makeUser(String name, String email, String password, Role role) {

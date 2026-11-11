@@ -29,13 +29,11 @@ services:
       - key: ADMIN_EMAIL
         value: admin@recruit.local
       - key: ADMIN_PASSWORD
-        sync: false        # you will be asked for this in the Render dashboard
+        sync: false        # optional – leave unset to use the default Admin@12345
       - key: DEMO_PASSWORD
-        sync: false
+        sync: false        # optional – leave unset to use the default Demo@1234
       - key: SEED_DEMO
         value: "true"
-      - key: RESET_SEED_PASSWORDS
-        value: "false"     # set to "true" for ONE deploy to reset admin/demo passwords, then set back to "false"
       - key: CORS_ORIGINS
         sync: false        # set to your frontend URL, e.g. https://recruit-web.onrender.com
 
