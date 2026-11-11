@@ -56,7 +56,7 @@ export default function App() {
     <AuthCtx.Provider value={{ user, login, logout }}>
       <header className="topbar">
         <div className="topbar-inner">
-          <span className="brand">🎯 HireLens</span>
+          <span className="brand">SNAP-HIRE</span>
           <nav>
             {NAV[role].map(([to, label]) => (
               <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>{label}</NavLink>

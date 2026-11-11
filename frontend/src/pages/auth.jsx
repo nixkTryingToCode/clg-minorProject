@@ -8,8 +8,8 @@ function Shell({ title, subtitle, children }) {
   return (
     <div className="auth-wrap">
       <div className="auth-hero">
-        <h1>🎯 HireLens</h1>
-        <p>AI-powered recruitment & career trajectory platform.</p>
+        <h1>SNAP-HIRE</h1>
+        <p>Recruitment and career trajectory platform.</p>
         <ul>
           <li>Upload a resume and get an editable structured profile</li>
           <li>See explainable job compatibility and skill gaps</li>

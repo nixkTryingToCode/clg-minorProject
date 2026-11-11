@@ -160,7 +160,7 @@ export function AutoApply() {
   return (
     <form className="card stack narrow" onSubmit={save}>
       <h1>Auto-apply</h1>
-      <p className="muted">When on, we apply for you to jobs posted on HireLens that meet your rules — each with a job-specific optimised resume and a draft cover letter. We never auto-submit to external websites.</p>
+      <p className="muted">When on, we apply for you to jobs posted on SNAP-HIRE that meet your rules — each with a job-specific optimised resume and a draft cover letter. We never auto-submit to external websites.</p>
       <Alert kind={msg.kind}>{msg.text}</Alert>
       <label className="check"><input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} /> Enable auto-apply</label>
       <label>Minimum compatibility: <b>{form.minScore}%</b><input type="range" min="30" max="100" value={form.minScore} onChange={set('minScore')} /></label>

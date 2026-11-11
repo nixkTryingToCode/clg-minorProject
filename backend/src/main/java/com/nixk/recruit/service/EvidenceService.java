@@ -77,7 +77,7 @@ public class EvidenceService {
         try {
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(4)).build();
             HttpRequest req = HttpRequest.newBuilder(URI.create("https://api.github.com/users/" + user))
-                    .header("User-Agent", "hirelens-verifier").header("Accept", "application/vnd.github+json")
+                    .header("User-Agent", "snap-hire-verifier").header("Accept", "application/vnd.github+json")
                     .timeout(Duration.ofSeconds(6)).GET().build();
             HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
             e.checkedAt = Instant.now();

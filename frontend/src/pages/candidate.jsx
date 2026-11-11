@@ -119,7 +119,7 @@ export function Jobs() {
           <option>Full-time</option><option>Part-time</option><option>Internship</option><option>Contract</option>
         </select>
         <select value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}>
-          <option value="">All sources</option><option value="INTERNAL">Posted on HireLens</option><option value="EXTERNAL">External listings</option>
+          <option value="">All sources</option><option value="INTERNAL">Posted on SNAP-HIRE</option><option value="EXTERNAL">External listings</option>
         </select>
         <button className="btn primary">Search</button>
       </form>

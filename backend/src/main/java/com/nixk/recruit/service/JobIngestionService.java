@@ -39,7 +39,7 @@ public class JobIngestionService {
         JsonNode data;
         try {
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).build();
-            HttpRequest req = HttpRequest.newBuilder(URI.create(API)).header("User-Agent", "hirelens-ingest")
+            HttpRequest req = HttpRequest.newBuilder(URI.create(API)).header("User-Agent", "snap-hire-ingest")
                     .header("Accept", "application/json").timeout(Duration.ofSeconds(15)).GET().build();
             HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() != 200) throw new ApiException(502, "The job feed returned HTTP " + res.statusCode());
