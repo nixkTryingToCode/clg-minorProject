@@ -104,5 +104,17 @@ th { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-s
 details > summary { cursor: pointer; font-weight: 600; margin: .3rem 0; }
 .bell { position: relative; }
 .bell .dot { background: var(--bad); color: #fff; border-radius: 99px; font-size: .65rem; padding: 0 .35rem; margin-left: .2rem; font-weight: 700; }
-.bell-menu { position: absolute; right: 0; top: 110%; width: min(340px, 86vw); max-height: 380px; overflow: auto; z-index: 20; }
-.bell-item { margin: .5rem 0; padding-bottom: .4rem; border-bottom: 1px solid var(--line); }
+.bell-menu { position: absolute; right: 0; top: 110%; width: min(360px, 86vw); z-index: 20; padding: .5rem; }
+.bell-head { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; padding: .1rem .4rem .45rem; }
+.bell-list-wrap { position: relative; }
+.bell-list { max-height: 340px; overflow-y: auto; overscroll-behavior: contain; padding-right: .15rem; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.bell-list::-webkit-scrollbar { width: 8px; }
+.bell-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; }
+.bell-list::-webkit-scrollbar-track { background: transparent; }
+.bell-list-wrap::after { content: ''; position: absolute; left: 0; right: .15rem; bottom: 0; height: 26px; background: linear-gradient(to bottom, transparent, var(--card)); pointer-events: none; }
+.bell-item { display: grid; grid-template-columns: auto 1fr; gap: .55rem; align-items: start; padding: .5rem .55rem; border-radius: 9px; color: var(--text); }
+.bell-item:hover { background: var(--accent-soft); text-decoration: none; }
+.bell-text { font-size: .85rem; line-height: 1.4; }
+.n-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--muted); margin-top: .42rem; }
+.n-dot.STATUS, .n-dot.AUTO_APPLY, .n-dot.NEW_APPLICATION, .n-dot.WITHDRAWN { background: var(--accent); }
+.n-dot.EVIDENCE { background: var(--good); }

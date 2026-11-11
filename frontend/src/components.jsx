@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { api } from './api.js';
 
 export function Alert({ kind = 'error', children }) {
@@ -71,6 +71,26 @@ export function useLoad(fn, deps = []) {
 
 export const fmtDate = (s) => (s ? new Date(s).toLocaleString() : '');
 
+/** Compact relative time for list rows; the full timestamp stays in the title attribute. */
+export const timeAgo = (s) => {
+  if (!s) return '';
+  const secs = (Date.now() - new Date(s).getTime()) / 1000;
+  if (secs < 60) return 'just now';
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  if (secs < 604800) return `${Math.floor(secs / 86400)}d ago`;
+  return new Date(s).toLocaleDateString();
+};
+
+/** Where a notification points: the exact application, the job's applicants page, or the evidence list. */
+export const notificationLink = (n) => {
+  if (!n) return '/';
+  if (n.type === 'EVIDENCE') return '/evidence';
+  if (n.type === 'NEW_APPLICATION' || n.type === 'WITHDRAWN') return n.jobId ? `/jobs/${n.jobId}/applicants` : '/jobs';
+  if (n.type === 'STATUS' || n.type === 'AUTO_APPLY') return n.linkId ? `/applications?a=${n.linkId}` : '/applications';
+  return '/';
+};
+
 /**
  * Header dropdown that groups several routes behind one label.
  * Closes on selection, outside click and Escape; the trigger stays
@@ -118,12 +138,26 @@ export function NavMenu({ label, items }) {
 export function NotificationBell() {
   const [data, setData] = useState({ items: [], unread: 0 });
   const [open, setOpen] = useState(false);
+  const wrap = useRef(null);
   const load = () => api('/api/notifications').then(setData).catch(() => {});
   useEffect(() => {
     load();
     const t = setInterval(load, 60000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const outside = (e) => { if (wrap.current && !wrap.current.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', outside);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', outside);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
   const toggle = async () => {
     const next = !open;
     setOpen(next);
@@ -132,14 +166,25 @@ export function NotificationBell() {
     }
   };
   return (
-    <div className="bell">
-      <button className="btn ghost" onClick={toggle} aria-label="Notifications">🔔{data.unread > 0 && <span className="dot">{data.unread}</span>}</button>
+    <div className="bell" ref={wrap}>
+      <button className="btn ghost" onClick={toggle} aria-label="Notifications" aria-haspopup="menu" aria-expanded={open}>🔔{data.unread > 0 && <span className="dot">{data.unread}</span>}</button>
       {open && (
-        <div className="bell-menu card">
-          <b>Notifications</b>
-          {data.items.length === 0 ? <p className="muted small">Nothing yet.</p> : data.items.slice(0, 12).map((n) => (
-            <p key={n.id} className="small bell-item">{n.message}<br /><span className="muted">{fmtDate(n.createdAt)}</span></p>
-          ))}
+        <div className="bell-menu card" role="menu">
+          <div className="bell-head">
+            <b>Notifications</b>
+            {data.unread > 0 && <span className="muted small">{data.unread} new</span>}
+          </div>
+          <div className="bell-list-wrap">
+            <div className="bell-list">
+              {data.items.length === 0 ? <p className="muted small">Nothing yet.</p> : data.items.slice(0, 20).map((n) => (
+                <Link key={n.id} to={notificationLink(n)} role="menuitem" onClick={() => setOpen(false)}
+                  className="bell-item" title={fmtDate(n.createdAt)}>
+                  <span className={`n-dot ${n.type}`} aria-hidden="true" />
+                  <span className="bell-text">{n.message}<span className="muted small"> · {timeAgo(n.createdAt)}</span></span>
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

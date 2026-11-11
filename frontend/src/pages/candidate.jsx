@@ -270,6 +270,26 @@ export function MyApplications() {
   const [open, setOpen] = useState(null);
   const [events, setEvents] = useState([]);
   const [err, setErr] = useState('');
+  const [params, setParams] = useSearchParams();
+  const highlight = params.get('a');
+
+  // A notification can point straight at one application: open its history and scroll to it.
+  useEffect(() => {
+    if (!highlight || !data) return undefined;
+    const row = (data || []).find(({ application }) => String(application.id) === highlight);
+    if (!row) { setParams({}, { replace: true }); return undefined; }
+    let cancelled = false;
+    api(`/api/applications/${row.application.id}/events`)
+      .then((ev) => { if (!cancelled) { setEvents(ev); setOpen(row.application.id); } })
+      .catch(() => {});
+    const t = setTimeout(() => {
+      document.getElementById(`application-${row.application.id}`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      setParams({}, { replace: true });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlight, data]);
 
   const toggle = async (id) => {
     if (open === id) { setOpen(null); return; }
@@ -287,7 +307,7 @@ export function MyApplications() {
       {loading ? <Spinner /> : data && data.length === 0 ? <p className="muted">No applications yet. <Link to="/jobs">Find a job</Link></p> : (
         <div className="stack">
           {(data || []).map(({ application: a, jobTitle, company, jobSource, externalUrl }) => (
-            <div key={a.id} className="card">
+            <div key={a.id} className="card" id={`application-${a.id}`}>
               <div className="row between top">
                 <div>
                   <h3>{jobTitle} {a.mode === 'AUTO' && <span className="badge s-screening">auto-applied</span>} {a.mode === 'EXTERNAL_ASSISTED' && <span className="badge s-withdrawn">applied externally</span>}</h3>
