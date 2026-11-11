@@ -1,0 +1,23 @@
+# Test configuration: in-memory H2 in PostgreSQL mode (same dialect quirks as the
+# dev profile) with demo seeding disabled so every test starts from a clean schema.
+spring:
+  datasource:
+    url: jdbc:h2:mem:recruittest;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+app:
+  jwt-secret: unit-test-secret-unit-test-secret-unit-test-secret-1234
+  jwt-expiry-hours: 1
+  cors-origins: http://localhost:5173
+  admin-email: admin@test.local
+  admin-password: Admin@12345
+  seed-demo: false
+  demo-password: Demo@1234
