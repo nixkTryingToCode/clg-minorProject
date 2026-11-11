@@ -7,5 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface JobRepo extends JpaRepository<Job, Long> {
     List<Job> findByActiveTrueOrderByCreatedAtDesc();
     List<Job> findByRecruiterIdOrderByCreatedAtDesc(Long recruiterId);
+    List<Job> findByCompanyIdOrderByCreatedAtDesc(Long companyId);
     Optional<Job> findFirstBySourceJobId(String sourceJobId);
 }

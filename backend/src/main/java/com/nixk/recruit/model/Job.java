@@ -9,6 +9,8 @@ public class Job {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     public Long id;
     public Long recruiterId;
+    /** Company the job belongs to when posted by a member of an organisation; null for standalone postings. */
+    public Long companyId;
     /** RECRUITER, DEMO or EXTERNAL */
     public String source = "RECRUITER";
     public String title;
