@@ -107,7 +107,7 @@ public class EvidenceService {
         if (note != null && !note.isBlank()) e.metadata = note.length() > 900 ? note.substring(0, 900) : note;
         e = repo.save(e);
         audit.log(adminId, "EVIDENCE_" + status, "Evidence", e.id, e.type + " " + e.title);
-        notifications.notify(e.candidateId, "EVIDENCE", "Your evidence \"" + e.title + "\" was marked " + status.toLowerCase(Locale.ROOT) + ".", e.id);
+        notifications.notify(e.candidateId, "EVIDENCE", "Your evidence \"" + e.title + "\" was marked " + status.toLowerCase(Locale.ROOT) + ".", e.id, null);
         return e;
     }
 

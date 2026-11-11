@@ -85,7 +85,7 @@ public class ApplicationController {
         audit.log(me.id, "WITHDRAW", "Application", a.id, null);
         Job job = jobs.findById(a.jobId).orElse(null);
         if (job != null && job.recruiterId != null) {
-            notifications.notify(job.recruiterId, "WITHDRAWN", me.name + " withdrew their application for \"" + job.title + "\".", a.id);
+            notifications.notify(job.recruiterId, "WITHDRAWN", me.name + " withdrew their application for \"" + job.title + "\".", a.id, job.id);
         }
         return a;
     }
@@ -143,7 +143,7 @@ public class ApplicationController {
         workflow.event(a.id, "STATUS_CHANGED", old + " -> " + s);
         audit.log(me.id, "APPLICATION_STATUS", "Application", a.id, old + " -> " + s);
         notifications.notify(a.candidateId, "STATUS", "Your application for \"" + job.title + "\" at " + job.company
-                + " is now " + s.name().toLowerCase(Locale.ROOT) + ".", a.id);
+                + " is now " + s.name().toLowerCase(Locale.ROOT) + ".", a.id, job.id);
         return a;
     }
 

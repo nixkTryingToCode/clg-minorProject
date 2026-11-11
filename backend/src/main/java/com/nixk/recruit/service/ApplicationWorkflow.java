@@ -93,11 +93,11 @@ public class ApplicationWorkflow {
         event(a.id, EXTERNAL.equals(mode) ? "TRACKED_EXTERNAL" : (AUTO.equals(mode) ? "AUTO_APPLIED" : "APPLIED"), detail);
         audit.log(candidate.id, AUTO.equals(mode) ? "AUTO_APPLY" : "APPLY", "Application", a.id, "job=" + job.id + " mode=" + mode);
         if (AUTO.equals(mode)) {
-            notifications.notify(candidate.id, "AUTO_APPLY", "Auto-applied to \"" + job.title + "\" at " + job.company + " (" + m.score() + "% match).", a.id);
+            notifications.notify(candidate.id, "AUTO_APPLY", "Auto-applied to \"" + job.title + "\" at " + job.company + " (" + m.score() + "% match).", a.id, job.id);
         }
         if (job.recruiterId != null) {
             notifications.notify(job.recruiterId, "NEW_APPLICATION",
-                    candidate.name + (AUTO.equals(mode) ? " (auto-apply)" : "") + " applied to \"" + job.title + "\" — " + m.score() + "% match.", a.id);
+                    candidate.name + (AUTO.equals(mode) ? " (auto-apply)" : "") + " applied to \"" + job.title + "\" — " + m.score() + "% match.", a.id, job.id);
         }
         return a;
     }

@@ -13,6 +13,8 @@ public class Notification {
     @Column(length = 1000)
     public String message;
     public Long linkId;
+    /** Job the notification refers to, so the UI can link straight to it. Null for non-job notifications. */
+    public Long jobId;
     public Boolean seen = false;
     public Instant createdAt = Instant.now();
 }

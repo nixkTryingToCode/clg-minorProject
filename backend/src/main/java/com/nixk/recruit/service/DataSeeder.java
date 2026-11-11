@@ -288,7 +288,7 @@ public class DataSeeder implements CommandLineRunner {
         }
         if (target != ApplicationStatus.WITHDRAWN) {
             notifications.notify(cand.id, "STATUS", "Your application for \"" + job.title + "\" at " + job.company
-                    + " is now " + target.name().toLowerCase(Locale.ROOT).replace('_', ' ') + ".", a.id);
+                    + " is now " + target.name().toLowerCase(Locale.ROOT).replace('_', ' ') + ".", a.id, job.id);
         }
     }
 
