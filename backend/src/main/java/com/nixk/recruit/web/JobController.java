@@ -26,6 +26,7 @@ public class JobController {
     private final MatchingService matching;
     private final SettingsService settings;
     private final SkillCatalog catalog;
+    private final CompanyService companyService;
     private final CoverLetterService coverLetters;
     private final AuditService audit;
     private final OptimizerService optimizer;
@@ -36,7 +37,8 @@ public class JobController {
     public JobController(JobRepo jobs, ApplicationRepo applications, RecruiterProfileRepo recruiters, ProfileService profiles,
                          MatchingService matching, SettingsService settings, SkillCatalog catalog,
                          CoverLetterService coverLetters, AuditService audit, OptimizerService optimizer,
-                         ResumeVersionRepo versions, InterviewPrepService interviewPrep, AutoApplyService autoApply) {
+                         ResumeVersionRepo versions, InterviewPrepService interviewPrep, AutoApplyService autoApply,
+                         CompanyService companyService) {
         this.jobs = jobs;
         this.applications = applications;
         this.recruiters = recruiters;
@@ -50,6 +52,7 @@ public class JobController {
         this.versions = versions;
         this.interviewPrep = interviewPrep;
         this.autoApply = autoApply;
+        this.companyService = companyService;
     }
 
     @GetMapping
@@ -93,7 +96,7 @@ public class JobController {
     }
 
     @GetMapping("/mine")
-    @PreAuthorize("hasRole('RECRUITER')")
+    @PreAuthorize("hasAnyRole('RECRUITER','COMPANY_ADMIN')")
     public List<Map<String, Object>> mine() {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Job j : jobs.findByRecruiterIdOrderByCreatedAtDesc(CurrentUser.get().id)) {
@@ -109,7 +112,7 @@ public class JobController {
     public JobView get(@PathVariable Long id) {
         AppUser me = CurrentUser.get();
         Job j = jobs.findById(id).orElseThrow(() -> new ApiException(404, "Job not found"));
-        if (!j.active && !(me.role == Role.ADMIN || Objects.equals(j.recruiterId, me.id))) throw new ApiException(404, "Job not found");
+        if (!j.active && !(me.role == Role.ADMIN || Objects.equals(j.recruiterId, me.id) || sameCompany(j, me))) throw new ApiException(404, "Job not found");
         if (me.role != Role.CANDIDATE) return new JobView(j, null, false, null);
         CandidateProfile p = profiles.getOrCreate(me.id);
         var existing = applications.findByCandidateIdAndJobId(me.id, id);
@@ -163,9 +166,10 @@ public class JobController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('RECRUITER')")
+    @PreAuthorize("hasAnyRole('RECRUITER','COMPANY_ADMIN')")
     public Job create(@Valid @RequestBody JobRequest r) {
         AppUser me = CurrentUser.get();
+        companyService.require(me, Permission.POST_JOB);
         Job j = new Job();
         j.recruiterId = me.id;
         j.source = "RECRUITER";
@@ -184,10 +188,11 @@ public class JobController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('RECRUITER','ADMIN')")
+    @PreAuthorize("hasAnyRole('RECRUITER','COMPANY_ADMIN','ADMIN')")
     public Job update(@PathVariable Long id, @Valid @RequestBody JobRequest r) {
         AppUser me = CurrentUser.get();
         Job j = owned(id, me);
+        companyService.require(me, Objects.equals(j.recruiterId, me.id) ? Permission.EDIT_JOB : Permission.EDIT_ANY_JOB);
         apply(j, r, me);
         j = jobs.save(j);
         audit.log(me.id, "JOB_UPDATE", "Job", j.id, j.title);
@@ -195,10 +200,11 @@ public class JobController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('RECRUITER','ADMIN')")
+    @PreAuthorize("hasAnyRole('RECRUITER','COMPANY_ADMIN','ADMIN')")
     public Map<String, String> delete(@PathVariable Long id) {
         AppUser me = CurrentUser.get();
         Job j = owned(id, me);
+        companyService.require(me, Objects.equals(j.recruiterId, me.id) ? Permission.EDIT_JOB : Permission.EDIT_ANY_JOB);
         for (JobApplication a : applications.findByJobId(id)) {
             if (a.status != ApplicationStatus.WITHDRAWN) { a.status = ApplicationStatus.WITHDRAWN; applications.save(a); }
         }
@@ -209,17 +215,32 @@ public class JobController {
 
     private Job owned(Long id, AppUser me) {
         Job j = jobs.findById(id).orElseThrow(() -> new ApiException(404, "Job not found"));
-        if (me.role != Role.ADMIN && !Objects.equals(j.recruiterId, me.id)) throw new ApiException(403, "You can only manage your own jobs");
+        if (me.role != Role.ADMIN && !Objects.equals(j.recruiterId, me.id) && !sameCompany(j, me)) {
+            throw new ApiException(403, "You can only manage your own jobs");
+        }
         return j;
+    }
+
+    /** True when the job belongs to the caller's company (jobs of an organisation are shared). */
+    private boolean sameCompany(Job j, AppUser me) {
+        return j.companyId != null
+                && companyService.memberOf(me.id).filter(m -> m.companyId.equals(j.companyId)).isPresent();
     }
 
     private void apply(Job j, JobRequest r, AppUser me) {
         j.title = r.title().trim();
-        String company = r.company();
-        if (company == null || company.isBlank()) {
-            company = recruiters.findByUserId(me.id).map(x -> x.companyName).orElse(me.name);
+        Optional<Company> org = companyService.companyOf(me.id);
+        if (org.isPresent()) {
+            // Inside an organisation the verified company name is used for every job.
+            j.company = org.get().name;
+            j.companyId = org.get().id;
+        } else {
+            String company = r.company();
+            if (company == null || company.isBlank()) {
+                company = recruiters.findByUserId(me.id).map(x -> x.companyName).orElse(me.name);
+            }
+            j.company = company.trim();
         }
-        j.company = company.trim();
         j.description = r.description().length() > 8000 ? r.description().substring(0, 8000) : r.description();
         j.requiredSkills = Csv.join(catalog.normalize(r.requiredSkills()));
         j.location = r.location();

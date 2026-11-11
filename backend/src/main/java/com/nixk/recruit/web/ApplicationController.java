@@ -27,11 +27,12 @@ public class ApplicationController {
     private final NotificationService notifications;
     private final EvidenceRepo evidenceRepo;
     private final EvidenceService evidenceService;
+    private final CompanyService companyService;
 
     public ApplicationController(ApplicationRepo applications, ApplicationEventRepo events, JobRepo jobs, UserRepo users,
                                  ProfileService profiles, MatchingService matching, SettingsService settings,
                                  AuditService audit, ApplicationWorkflow workflow, NotificationService notifications,
-                                 EvidenceRepo evidenceRepo, EvidenceService evidenceService) {
+                                 EvidenceRepo evidenceRepo, EvidenceService evidenceService, CompanyService companyService) {
         this.applications = applications;
         this.events = events;
         this.jobs = jobs;
@@ -44,6 +45,7 @@ public class ApplicationController {
         this.notifications = notifications;
         this.evidenceRepo = evidenceRepo;
         this.evidenceService = evidenceService;
+        this.companyService = companyService;
     }
 
     @PostMapping
@@ -95,16 +97,20 @@ public class ApplicationController {
         AppUser me = CurrentUser.get();
         JobApplication a = applications.findById(id).orElseThrow(() -> new ApiException(404, "Application not found"));
         if (me.role == Role.CANDIDATE && !Objects.equals(a.candidateId, me.id)) throw new ApiException(403, "Not your application");
-        if (me.role == Role.RECRUITER) ownedJob(a.jobId, me);
+        if (me.role == Role.RECRUITER || me.role == Role.COMPANY_ADMIN) {
+            ownedJob(a.jobId, me);
+            companyService.require(me, Permission.VIEW_APPLICANTS);
+        }
         return events.findByApplicationIdOrderByCreatedAtAsc(id);
     }
 
     /** Recruiter: applicants for one job, ranked by job-specific compatibility blended with verified evidence (85/15). */
     @GetMapping("/job/{jobId}")
-    @PreAuthorize("hasAnyRole('RECRUITER','ADMIN')")
+    @PreAuthorize("hasAnyRole('RECRUITER','COMPANY_ADMIN','ADMIN')")
     public List<ApplicantView> forJob(@PathVariable Long jobId) {
         AppUser me = CurrentUser.get();
         Job job = ownedJob(jobId, me);
+        companyService.require(me, Permission.VIEW_APPLICANTS);
         Map<String, Double> w = settings.weights();
         List<ApplicantView> out = new ArrayList<>();
         for (JobApplication a : applications.findByJobId(job.id)) {
@@ -122,12 +128,13 @@ public class ApplicationController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('RECRUITER')")
+    @PreAuthorize("hasAnyRole('RECRUITER','COMPANY_ADMIN')")
     @Transactional
     public JobApplication setStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest r) {
         AppUser me = CurrentUser.get();
         JobApplication a = applications.findById(id).orElseThrow(() -> new ApiException(404, "Application not found"));
         Job job = ownedJob(a.jobId, me);
+        companyService.require(me, Permission.UPDATE_STATUS);
         ApplicationStatus s;
         try {
             s = ApplicationStatus.valueOf(r.status().toUpperCase(Locale.ROOT));
@@ -149,7 +156,11 @@ public class ApplicationController {
 
     private Job ownedJob(Long jobId, AppUser me) {
         Job job = jobs.findById(jobId).orElseThrow(() -> new ApiException(404, "Job not found"));
-        if (me.role != Role.ADMIN && !Objects.equals(job.recruiterId, me.id)) throw new ApiException(403, "Not your job");
+        boolean own = me.role == Role.ADMIN || Objects.equals(job.recruiterId, me.id);
+        if (!own && !(job.companyId != null
+                && companyService.memberOf(me.id).filter(m -> m.companyId.equals(job.companyId)).isPresent())) {
+            throw new ApiException(403, "Not your job");
+        }
         return job;
     }
 }

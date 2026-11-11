@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/recruiter")
-@PreAuthorize("hasRole('RECRUITER')")
+@PreAuthorize("hasAnyRole('RECRUITER','COMPANY_ADMIN')")
 public class RecruiterController {
     private final RecruiterProfileRepo profiles;
     private final JobRepo jobs;
@@ -25,11 +25,12 @@ public class RecruiterController {
     private final MatchingService matching;
     private final SettingsService settings;
     private final SkillCatalog catalog;
+    private final CompanyService companyService;
 
     public RecruiterController(RecruiterProfileRepo profiles, JobRepo jobs, ApplicationRepo applications, UserRepo users,
                                AuditService audit, CandidateProfileRepo candidateProfiles, EvidenceRepo evidenceRepo,
                                EvidenceService evidenceService, MatchingService matching, SettingsService settings,
-                               SkillCatalog catalog) {
+                               SkillCatalog catalog, CompanyService companyService) {
         this.profiles = profiles;
         this.jobs = jobs;
         this.applications = applications;
@@ -41,6 +42,7 @@ public class RecruiterController {
         this.matching = matching;
         this.settings = settings;
         this.catalog = catalog;
+        this.companyService = companyService;
     }
 
     private RecruiterProfile mine() {
@@ -152,10 +154,16 @@ public class RecruiterController {
                                                 @RequestParam(required = false) Long jobId,
                                                 @RequestParam(required = false, defaultValue = "false") boolean verifiedOnly) {
         AppUser me = CurrentUser.get();
+        companyService.require(me, Permission.VIEW_APPLICANTS);
         Job job = null;
         if (jobId != null) {
-            job = jobs.findById(jobId).orElseThrow(() -> new ApiException(404, "Job not found"));
-            if (!Objects.equals(job.recruiterId, me.id)) throw new ApiException(403, "Not your job");
+            Job found = jobs.findById(jobId).orElseThrow(() -> new ApiException(404, "Job not found"));
+            boolean own = Objects.equals(found.recruiterId, me.id);
+            if (!own && !(found.companyId != null
+                    && companyService.memberOf(me.id).filter(m -> m.companyId.equals(found.companyId)).isPresent())) {
+                throw new ApiException(403, "Not your job");
+            }
+            job = found;
         }
         List<String> required = catalog.normalize(skills);
         Map<Long, AppUser> byId = new HashMap<>();
