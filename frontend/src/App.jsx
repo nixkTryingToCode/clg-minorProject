@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { api, getToken, setToken } from './api.js';
 import { AuthCtx } from './authContext.js';
-import { NotificationBell, Spinner } from './components.jsx';
+import { NavMenu, NotificationBell, Spinner } from './components.jsx';
 import { Login, Register } from './pages/auth.jsx';
 import { CandidateHome, CandidateProfile, JobDetail, Jobs, MyApplications, Trajectory } from './pages/candidate.jsx';
 import { AutoApply, Evidence, Resumes } from './pages/candidate_more.jsx';
@@ -13,7 +13,11 @@ import { AdminAudit, AdminHome, AdminJobs, AdminSettings, AdminUsers } from './p
 
 
 const NAV = {
-  CANDIDATE: [['/', 'Dashboard'], ['/profile', 'Profile'], ['/evidence', 'Evidence'], ['/jobs', 'Jobs'], ['/trajectory', 'Career Trajectory'], ['/resumes', 'Resumes'], ['/applications', 'Applications'], ['/auto-apply', 'Auto-apply']],
+  CANDIDATE: [
+    ['/', 'Dashboard'],
+    { label: 'My Profile', items: [['/profile', 'Profile'], ['/evidence', 'Evidence'], ['/applications', 'Applications']] },
+    ['/jobs', 'Jobs'], ['/trajectory', 'Career Trajectory'], ['/resumes', 'Resumes'], ['/auto-apply', 'Auto-apply'],
+  ],
   RECRUITER: [['/', 'Dashboard'], ['/jobs', 'My Jobs'], ['/jobs/new', 'Post a Job'], ['/candidates', 'Find Candidates'], ['/company', 'Company']],
   ADMIN: [['/', 'Overview'], ['/users', 'Users'], ['/jobs', 'Jobs'], ['/evidence', 'Evidence'], ['/evaluation', 'Evaluation'], ['/audit', 'Audit Log'], ['/settings', 'Scoring']],
 };
@@ -58,9 +62,11 @@ export default function App() {
         <div className="topbar-inner">
           <span className="brand">SNAP-HIRE</span>
           <nav>
-            {NAV[role].map(([to, label]) => (
-              <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>{label}</NavLink>
-            ))}
+            {NAV[role].map((entry) => (Array.isArray(entry) ? (
+              <NavLink key={entry[0]} to={entry[0]} end={entry[0] === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>{entry[1]}</NavLink>
+            ) : (
+              <NavMenu key={entry.label} label={entry.label} items={entry.items} />
+            )))}
           </nav>
           <div className="who">
             <NotificationBell />

@@ -24,6 +24,15 @@ nav a:hover { background: var(--accent-soft); text-decoration: none; } nav a.act
 .container { max-width: 1180px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
 
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.2rem; box-shadow: var(--shadow); }
+
+/* header dropdown that groups several routes behind one label */
+.nav-group { position: relative; }
+.nav-group > button { display: inline-flex; align-items: center; gap: .3rem; color: var(--muted); background: transparent; border: 0; padding: .4rem .75rem; border-radius: 8px; font: inherit; font-weight: 500; cursor: pointer; }
+.nav-group > button:hover { background: var(--accent-soft); }
+.nav-group > button.active { background: var(--accent-soft); color: var(--accent); }
+.nav-group .caret { font-size: .65em; opacity: .7; }
+.nav-menu { position: absolute; left: 0; top: 110%; min-width: 190px; max-width: calc(100vw - 2rem); z-index: 20; padding: .35rem; display: grid; gap: .1rem; }
+.nav-menu a { display: block; }
 a.card { color: inherit; display: flex; flex-direction: column; gap: .6rem; transition: transform .12s, border-color .12s; }
 a.card:hover { transform: translateY(-2px); border-color: var(--accent); text-decoration: none; }
 .narrow { max-width: 680px; margin: 0 auto; }

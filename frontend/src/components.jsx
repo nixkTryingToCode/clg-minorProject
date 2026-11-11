@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { api } from './api.js';
 
 export function Alert({ kind = 'error', children }) {
@@ -69,6 +70,50 @@ export function useLoad(fn, deps = []) {
 }
 
 export const fmtDate = (s) => (s ? new Date(s).toLocaleString() : '');
+
+/**
+ * Header dropdown that groups several routes behind one label.
+ * Closes on selection, outside click and Escape; the trigger stays
+ * highlighted while the location is inside one of the group's paths.
+ */
+export function NavMenu({ label, items }) {
+  const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  const wrap = useRef(null);
+
+  const active = items.some(([to]) => (to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(`${to}/`)));
+
+  useEffect(() => { setOpen(false); }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const outside = (e) => { if (wrap.current && !wrap.current.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', outside);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', outside);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
+  return (
+    <div className="nav-group" ref={wrap}>
+      <button type="button" className={active ? 'active' : ''} aria-haspopup="menu" aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}>
+        {label}<span className="caret" aria-hidden="true">▾</span>
+      </button>
+      {open && (
+        <div className="nav-menu card" role="menu">
+          {items.map(([to, text]) => (
+            <NavLink key={to} to={to} end={to === '/'} role="menuitem" onClick={() => setOpen(false)}
+              className={({ isActive }) => (isActive ? 'active' : '')}>{text}</NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function NotificationBell() {
   const [data, setData] = useState({ items: [], unread: 0 });
