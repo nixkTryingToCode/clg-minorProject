@@ -7,11 +7,15 @@ import java.util.List;
 public final class DemoData {
     private DemoData() {}
 
+    /** Company admin accounts created by the seeder (seed version 3). */
+    public static final List<String> COMPANY_ACCOUNTS = List.of("owner@demo.com", "zenith@demo.com");
+
     /** Every email owned by the demo dataset; the seeder keeps their passwords aligned with DEMO_PASSWORD. */
     public static List<String> demoEmails() {
         List<String> emails = new ArrayList<>();
         RECRUITERS.forEach(r -> emails.add(r.email()));
         PERSONAS.forEach(p -> emails.add(p.email()));
+        emails.addAll(COMPANY_ACCOUNTS);
         return emails;
     }
 

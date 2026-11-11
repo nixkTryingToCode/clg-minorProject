@@ -2,6 +2,7 @@ package com.nixk.recruit.service;
 
 import com.nixk.recruit.model.*;
 import com.nixk.recruit.repo.*;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Component;
 public class DataSeeder implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
     private static final String SEED_KEY = "demo.seed.version";
-    private static final String SEED_VERSION = "2";
+    private static final String SEED_VERSION = "3";
     private static final List<ApplicationStatus> PIPELINE = List.of(ApplicationStatus.SCREENING, ApplicationStatus.SHORTLISTED,
             ApplicationStatus.INTERVIEW, ApplicationStatus.SELECTED);
 
@@ -40,6 +41,9 @@ public class DataSeeder implements CommandLineRunner {
     private final AutoApplyRuleRepo ruleRepo;
     private final ResumeVersionRepo versions;
     private final SettingRepo settingRepo;
+    private final CompanyRepo companies;
+    private final CompanyMemberRepo members;
+    private final CompanyDocumentRepo documents;
     private final PasswordEncoder encoder;
     private final SkillCatalog catalog;
     private final ProfileService profiles;
@@ -55,6 +59,7 @@ public class DataSeeder implements CommandLineRunner {
 
     public DataSeeder(UserRepo users, RecruiterProfileRepo recruiters, JobRepo jobs, ApplicationRepo applications,
                       EvidenceRepo evidenceRepo, AutoApplyRuleRepo ruleRepo, ResumeVersionRepo versions, SettingRepo settingRepo,
+                      CompanyRepo companies, CompanyMemberRepo members, CompanyDocumentRepo documents,
                       PasswordEncoder encoder, SkillCatalog catalog, ProfileService profiles, ApplicationWorkflow workflow,
                       OptimizerService optimizer, AutoApplyService autoApply, NotificationService notifications) {
         this.users = users;
@@ -65,6 +70,9 @@ public class DataSeeder implements CommandLineRunner {
         this.ruleRepo = ruleRepo;
         this.versions = versions;
         this.settingRepo = settingRepo;
+        this.companies = companies;
+        this.members = members;
+        this.documents = documents;
         this.encoder = encoder;
         this.catalog = catalog;
         this.profiles = profiles;
@@ -131,6 +139,9 @@ public class DataSeeder implements CommandLineRunner {
             companyByEmail.put(r.email(), rp.companyName);
         }
 
+        // ---- companies (company workflow, seed version 3) ----
+        Map<String, Long> companyNameToId = seedCompanies(pw, recruiterUsers);
+
         // ---- candidates ----
         Map<String, AppUser> candidates = new HashMap<>();
         for (DemoData.Persona p : DemoData.PERSONAS) {
@@ -166,6 +177,7 @@ public class DataSeeder implements CommandLineRunner {
             j.source = "DEMO";
             j.title = s.title();
             j.company = company;
+            j.companyId = companyNameToId.get(company);
             j.description = s.desc();
             j.requiredSkills = Csv.join(catalog.normalize(s.skills()));
             j.location = s.location();
@@ -190,6 +202,16 @@ public class DataSeeder implements CommandLineRunner {
             jobs.save(j);
         }
         Map<String, Job> byTitle = new HashMap<>();
+        // link jobs from earlier seed versions to their companies (idempotent backfill)
+        for (Job j : jobs.findAll()) {
+            if (j.companyId == null && j.company != null) {
+                Long cid = companyNameToId.get(j.company);
+                if (cid != null) {
+                    j.companyId = cid;
+                    jobs.save(j);
+                }
+            }
+        }
         for (Job j : jobs.findAll()) byTitle.putIfAbsent(j.title, j);
 
         // ---- evidence ----
@@ -265,8 +287,97 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
-    private void advance(JobApplication a, Job job, AppUser cand, ApplicationStatus target) {
-        if (target == ApplicationStatus.APPLIED) return;
+    /**
+     * Company workflow demo data: three verified companies, one still awaiting
+     * verification, a dedicated company-admin account and memberships for the demo
+     * recruiters. Returns company name -> id so demo jobs can be linked to them.
+     */
+    private Map<String, Long> seedCompanies(String pw, Map<String, AppUser> recruiterUsers) {
+        Map<String, Long> byName = new HashMap<>();
+        AppUser owner = getOrCreateUser("Anita Rao", "owner@demo.com", pw, Role.COMPANY_ADMIN);
+        AppUser zenith = getOrCreateUser("Kabir Sethi", "zenith@demo.com", pw, Role.COMPANY_ADMIN);
+        // the leads of FinEdge and CloudKart run their own companies
+        promoteToCompanyAdmin(recruiterUsers.get("recruiter2@demo.com"));
+        promoteToCompanyAdmin(recruiterUsers.get("recruiter3@demo.com"));
+
+        Company technova = ensureCompany("TechNova Solutions", "technova.example.com", "https://technova.example.com",
+                "Cloud and platform engineering services for fast growing product teams.", "IT Services", "Bengaluru",
+                CompanyStatus.ACTIVE, owner.id, byName);
+        Company finedge = ensureCompany("FinEdge Capital", "finedge.example.com", "https://finedge.example.com",
+                "Investment and lending products for small businesses.", "Financial Services", "Mumbai",
+                CompanyStatus.ACTIVE, recruiterUsers.get("recruiter2@demo.com").id, byName);
+        Company cloudkart = ensureCompany("CloudKart", "cloudkart.example.com", "https://cloudkart.example.com",
+                "Cloud native commerce infrastructure for online brands.", "E-commerce", "Hyderabad",
+                CompanyStatus.ACTIVE, recruiterUsers.get("recruiter3@demo.com").id, byName);
+        Company zenithLabs = ensureCompany("Zenith Labs", "zenithlabs.example.com", "https://zenithlabs.example.com",
+                "Applied AI research and tooling. Registered on the demo platform, still awaiting verification.",
+                "AI / ML", "Pune", CompanyStatus.PENDING_VERIFICATION, zenith.id, byName);
+
+        ensureMember(technova, owner);
+        ensureMember(technova, recruiterUsers.get("recruiter@demo.com"));
+        ensureMember(finedge, recruiterUsers.get("recruiter2@demo.com"));
+        ensureMember(cloudkart, recruiterUsers.get("recruiter3@demo.com"));
+        ensureMember(zenithLabs, zenith);
+
+        // something for the admin to look at in the verification queue
+        if (documents.findByCompanyIdOrderByUploadedAtDesc(zenithLabs.id).isEmpty()) {
+            CompanyDocument doc = new CompanyDocument();
+            doc.companyId = zenithLabs.id;
+            doc.fileName = "incorporation-certificate.txt";
+            doc.mimeType = "text/plain";
+            doc.data = ("Zenith Labs Pvt Ltd - sample incorporation certificate for the SNAP-HIRE demo.\n"
+                    + "Domain: zenithlabs.example.com\n").getBytes(StandardCharsets.UTF_8);
+            documents.save(doc);
+        }
+        return byName;
+    }
+
+    private Company ensureCompany(String name, String domain, String website, String description, String industry,
+                                  String location, CompanyStatus status, Long ownerId, Map<String, Long> byName) {
+        Company c = companies.findFirstByEmailDomainIgnoreCase(domain).orElse(null);
+        if (c == null) {
+            c = new Company();
+            c.emailDomain = domain;
+            c.status = status;
+            c.ownerId = ownerId;
+            if (status == CompanyStatus.ACTIVE) {
+                c.verifiedBy = "SEED";
+                c.verifiedAt = Instant.now();
+            }
+        }
+        c.name = name;
+        c.website = website;
+        c.description = description;
+        c.industry = industry;
+        c.location = location;
+        if (c.ownerId == null) c.ownerId = ownerId;
+        c = companies.save(c);
+        byName.put(c.name, c.id);
+        return c;
+    }
+
+    private void ensureMember(Company c, AppUser u) {
+        if (u == null || c == null) return;
+        CompanyMember m = members.findByUserId(u.id).orElse(null);
+        if (m == null) {
+            m = new CompanyMember();
+            m.companyId = c.id;
+            m.userId = u.id;
+        }
+        if (!m.companyId.equals(c.id)) return; // already belongs to a different company
+        m.permissions = String.join(",", Permission.allNames());
+        m.status = MemberStatus.ACTIVE;
+        members.save(m);
+    }
+
+    private void promoteToCompanyAdmin(AppUser u) {
+        if (u != null && u.role != Role.COMPANY_ADMIN) {
+            u.role = Role.COMPANY_ADMIN;
+            users.save(u);
+        }
+    }
+
+    private void advance(JobApplication a, Job job, AppUser cand, ApplicationStatus target) {        if (target == ApplicationStatus.APPLIED) return;
         List<ApplicationStatus> steps = new ArrayList<>();
         if (target == ApplicationStatus.WITHDRAWN) {
             steps.add(ApplicationStatus.WITHDRAWN);
