@@ -34,7 +34,7 @@ export function Evidence() {
     <div className="grid two-wide">
       <section className="stack">
         <h1>Evidence & verification</h1>
-        <p className="muted">Back your skills with links. GitHub profiles are checked automatically through GitHub's public API; other links and certificates are reviewed by an admin. Recruiters see verified evidence labelled separately from self-declared skills.</p>
+        <p className="muted">Back your skills with links. GitHub and LeetCode profiles are checked through their public APIs; LinkedIn, Kaggle and HackerRank links through a reachability check; certificates and other links are always reviewed by an admin. Recruiters see verified evidence labelled separately from self-declared skills.</p>
         <Alert>{error}</Alert>
         {loading ? <Spinner /> : data.items.length === 0 ? <p className="muted">No evidence yet.</p> : data.items.map((e) => (
           <div key={e.id} className="card">

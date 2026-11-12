@@ -108,7 +108,9 @@ public class RecruiterController {
                 candidateProfiles.findByUserId(a.candidateId).ifPresent(cp -> {
                     for (String s : catalog.normalize(cp.skills)) skillCounts.merge(s, 1, Integer::sum);
                 });
-                if (evidenceService.evidenceScore(a.candidateId) >= 35) verifiedApplicants++;
+                boolean hasVerified = evidenceRepo.findByCandidateIdOrderByCreatedAtDesc(a.candidateId)
+                        .stream().anyMatch(ev -> "VERIFIED".equals(ev.status));
+                if (hasVerified) verifiedApplicants++;
             }
             row.put("avgScore", apps.isEmpty() ? 0 : Math.round((float) jobScoreSum / apps.size()));
             perJob.add(row);

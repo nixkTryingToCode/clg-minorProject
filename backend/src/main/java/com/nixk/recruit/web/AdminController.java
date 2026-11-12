@@ -155,6 +155,19 @@ public class AdminController {
         return evidenceService.review(e, r.status() == null ? "" : r.status().toUpperCase(Locale.ROOT), CurrentUser.get().id, r.note());
     }
 
+    @GetMapping("/evidence/auto-verify")
+    public Map<String, Object> evidenceAutoVerify() {
+        return Map.of("enabled", evidenceService.autoVerifyEnabled());
+    }
+
+    @PutMapping("/evidence/auto-verify")
+    public Map<String, Object> setEvidenceAutoVerify(@RequestBody EnabledRequest r) {
+        boolean enabled = evidenceService.setAutoVerify(r.enabled());
+        audit.log(CurrentUser.get().id, enabled ? "EVIDENCE_AUTO_VERIFY_ON" : "EVIDENCE_AUTO_VERIFY_OFF",
+                "Settings", null, "evidence.auto_verify=" + enabled);
+        return Map.of("enabled", enabled);
+    }
+
     /* ---------------- evaluation & automation ---------------- */
 
     @GetMapping("/evaluation")

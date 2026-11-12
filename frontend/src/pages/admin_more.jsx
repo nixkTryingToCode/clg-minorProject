@@ -6,12 +6,37 @@ import { Alert, Spinner, fmtDate, useLoad } from '../components.jsx';
 export function AdminEvidence() {
   const [status, setStatus] = useState('PENDING');
   const { data, error, loading, reload } = useLoad(() => api(`/api/admin/evidence?status=${status}`), [status]);
-  const [err, setErr] = useState('');
+  const auto = useLoad(() => api('/api/admin/evidence/auto-verify'));
+  const [msg, setMsg] = useState({ kind: 'error', text: '' });
+  const [busy, setBusy] = useState(false);
+
   const review = async (id, s) => {
     const note = s === 'REJECTED' ? window.prompt('Reason (shown to the candidate):', '') : '';
     if (note === null) return;
-    try { await api(`/api/admin/evidence/${id}`, { method: 'PATCH', body: { status: s, note } }); reload(); } catch (e) { setErr(e.message); }
+    try {
+      await api(`/api/admin/evidence/${id}`, { method: 'PATCH', body: { status: s, note } });
+      setMsg({ kind: 'success', text: `Evidence marked ${s.toLowerCase()} — the candidate has been notified.` });
+      reload();
+    } catch (e) { setMsg({ kind: 'error', text: e.message }); }
   };
+
+  const toggleAuto = async () => {
+    setBusy(true);
+    setMsg({ kind: 'error', text: '' });
+    try {
+      const r = await api('/api/admin/evidence/auto-verify', { method: 'PUT', body: { enabled: !auto.data.enabled } });
+      setMsg({
+        kind: 'success',
+        text: r.enabled
+          ? 'Auto checks are on — conclusive results now set the status directly.'
+          : 'Auto checks are off — checks still run and annotate each item, but everything waits for your review.',
+      });
+      auto.reload();
+      reload();
+    } catch (e) { setMsg({ kind: 'error', text: e.message }); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div className="stack-lg">
       <div className="row between"><h1>Evidence review</h1>
@@ -19,7 +44,24 @@ export function AdminEvidence() {
           <option>PENDING</option><option>VERIFIED</option><option>REJECTED</option>
         </select>
       </div>
-      <Alert>{err || error}</Alert>
+      {auto.data && (
+        <section className="card row between wrap">
+          <div>
+            <h3>Automatic checks</h3>
+            <p className="muted small" style={{ maxWidth: '48rem' }}>
+              GitHub and LeetCode links are checked through their public APIs; LinkedIn, Kaggle and
+              HackerRank links through a reachability check (a blocked or timed-out check never
+              rejects — it just waits here). When on, conclusive results set the status directly.
+              Turn it off to review every item yourself; checks keep running and note what they found.
+            </p>
+          </div>
+          <button className={`btn ${auto.data.enabled ? 'primary' : ''}`} disabled={busy} onClick={toggleAuto}>
+            {auto.data.enabled ? 'On — turn off' : 'Off — turn on'}
+          </button>
+        </section>
+      )}
+      <Alert kind={msg.kind}>{msg.text}</Alert>
+      <Alert>{error}</Alert>
       {loading ? <Spinner /> : data.length === 0 ? <p className="muted">Nothing here.</p> : (
         <div className="stack">
           {data.map(({ evidence: e, candidate }) => (
