@@ -20,7 +20,9 @@ so a recruiter knows what they are looking at.
 - Career trajectories: recommended paths with the gaps, projects and learning links for each
 - Job-specific resume versions, cover-letter drafts and interview preparation
 - Auto-apply rules for internal jobs (minimum score, daily cap, location and title filters)
-- Evidence section for GitHub links and certificates, reviewed by an administrator
+- Evidence section for profile links and certificates: GitHub and LeetCode are verified through
+  their public APIs, other profile links through reachability checks, and certificates always
+  through administrator review
 
 **Recruiters and companies**
 - Post, edit and close jobs; jobs posted from inside a company carry its verified name
@@ -34,7 +36,8 @@ so a recruiter knows what they are looking at.
 - Company-wide job, application and hire analytics
 
 **Administrators**
-- User and job management, evidence verification, audit log
+- User and job management, audit log
+- Evidence review with an automatic-check toggle that can be turned off again at any time
 - Company verification: review registrations and their documents, activate, reject or suspend
 - Tunable scoring weights and evaluation metrics
 - Ingestion of external listings into the common job board
@@ -63,6 +66,8 @@ applications in every stage of the pipeline.
 
 ```
 backend/     Spring Boot API (model, repositories, security, services, controllers)
+             backend/functionality.md documents every backend function and how the
+             complex ones (matching, verification, auto-apply, ingestion) work
 frontend/    React + Vite single page app (candidate, recruiter and admin views)
 render.yaml  Deployment blueprint for the API, database and site
 ```
